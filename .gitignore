@@ -1,0 +1,6 @@
+/.data/
+/.idea/
+/.tmp/
+/.vscode/
+/.env
+.DS_Store

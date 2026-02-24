@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  binary:
+    name: Binary (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - os: linux
+            arch: arm64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - os: darwin
+            arch: amd64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - os: darwin
+            arch: arm64
+            binary_ext: ""
+            archive_ext: .tar.gz
+          - os: windows
+            arch: amd64
+            binary_ext: .exe
+            archive_ext: .zip
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Create "dist/${{ matrix.os }}/${{ matrix.arch }}" Directory
+        run: mkdir -p dist/${{ matrix.os }}/${{ matrix.arch }}
+
+      - name: Create "archives" Directory
+        run: mkdir -p archives
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0" # static binaries (portable, no libc issues)
+          BINARY_NAME: dist/${{ matrix.os }}/${{ matrix.arch }}/${{ github.event.repository.name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.binary_ext }}
+        run: go build -ldflags="-s -w" -o $BINARY_NAME ./cmd/sidecar
+
+      - name: Archive .zip
+        if: matrix.archive_ext == '.zip'
+        env:
+          ARCHIVE_NAME: archives/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.archive_ext }}
+          BINARY_NAME: dist/${{ matrix.os }}/${{ matrix.arch }}/${{ github.event.repository.name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.binary_ext }}
+        run: zip --junk-paths $ARCHIVE_NAME $BINARY_NAME
+
+      - name: Archive .tar.gz
+        if: matrix.archive_ext == '.tar.gz'
+        env:
+          ARCHIVE_NAME: archives/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.archive_ext }}
+          BINARY_DIR: dist/${{ matrix.os }}/${{ matrix.arch }}
+          BINARY_NAME: ${{ github.event.repository.name }}-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.binary_ext }}
+        run: tar -czf $ARCHIVE_NAME -C $BINARY_DIR $BINARY_NAME
+
+      - name: Upload Archives to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: archives/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-image:
+    name: Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          platforms: linux/amd64,linux/arm64
