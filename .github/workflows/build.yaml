@@ -1,0 +1,42 @@
+name: Build
+
+on: pull_request
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }} - ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Create "dist" Directory
+        run: mkdir -p dist
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0" # static binaries (portable, no libc issues)
+          BINARY_NAME: dist/${{ github.event.repository.name }}-${{ matrix.os }}-${{ matrix.arch }}
+        run: go build -ldflags="-s -w" -o $BINARY_NAME ./cmd/sidecar
