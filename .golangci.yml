@@ -1,0 +1,83 @@
+version: "2"
+
+linters:
+  enable:
+    - asciicheck # Checks that all code identifiers does not have non-ASCII symbols in the name.
+    - contextcheck # Check whether the function uses a non-inherited context.
+    - errcheck # Errcheck is a program for checking for unchecked errors in Go code. These unchecked errors can be critical bugs in some cases.
+    - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error.
+    - errorlint # Find code that can cause problems with the error wrapping scheme introduced in Go 1.13.
+    - gocritic # Provides diagnostics that check for bugs, performance and style issues. Extensible without recompilation through dynamic rules. Dynamic rules are written declaratively with AST patterns, filters, report message and optional suggestion.
+    - govet # Vet examines Go source code and reports suspicious constructs. It is roughly the same as 'go vet' and uses its passes.
+    - inamedparam # Reports interfaces with unnamed method parameters.
+    - modernize # A suite of analyzers that suggest simplifications to Go code, using modern language and library features.
+    - nilerr # Find the code that returns nil even if it checks that the error is not nil.
+    - nilnesserr # Reports constructs that checks for err != nil, but returns a different nil value error. Powered by nilness and nilerr.
+    - nilnil # Checks that there is no simultaneous return of nil error and an invalid value.
+    - nlreturn # Checks for a new line before return and branch statements to increase code clarity.
+    - nonamedreturns # Reports all named returns.
+    - perfsprint # Checks that fmt.Sprintf can be replaced with a faster alternative.
+    - predeclared # Find code that shadows one of Go's predeclared identifiers.
+    - recvcheck # Checks for receiver type consistency.
+    - sloglint # Ensure consistent code style when using log/slog.
+    - staticcheck # It's the set of rules from staticcheck.
+    - unparam # Reports unused function parameters.
+    - unused # Checks Go code for unused constants, variables, functions and types.
+    - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc.
+    - wsl_v5 # Add or remove empty lines.
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      disable-default-exclusions: true
+      exclude-functions:
+        - fmt.Println
+        - (*strings.Builder).WriteByte
+        - (*strings.Builder).WriteString
+      verbose: true
+
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+
+    sloglint:
+      attr-only: true
+      no-global: "all"
+      context: "all"
+      static-msg: true
+      msg-style: capitalized
+      key-naming-case: snake
+      args-on-sep-lines: true
+
+    staticcheck:
+      checks: [all, -ST1005, -ST1000, -ST1003, -ST1020, -ST1021, -ST1022, -SA4011]
+
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - importShadow
+
+  exclusions:
+    warn-unused: true
+    paths:
+      - "pkg/embyclient/model.+\\.go$"
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+    - swaggo
+
+  settings:
+    golines:
+      max-len: 120
+
+  exclusions:
+    warn-unused: true
+    paths:
+      - "pkg/embyclient/model.+\\.go$"
