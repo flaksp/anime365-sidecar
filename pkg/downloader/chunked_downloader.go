@@ -11,7 +11,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/flaksp/anime365-emby/pkg/filesize"
+	"github.com/flaksp/anime365-sidecar/pkg/filesize"
 	"golang.org/x/sync/errgroup"
 )
 

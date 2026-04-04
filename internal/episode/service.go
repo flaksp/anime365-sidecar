@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 )
 
 func NewService(anime365Client *anime365client.Client) *Service {

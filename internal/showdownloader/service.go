@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"maps"
 
-	"github.com/flaksp/anime365-emby/internal/emby"
-	"github.com/flaksp/anime365-emby/internal/episodedownloader"
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/internal/scansource"
-	"github.com/flaksp/anime365-emby/internal/show"
+	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/internal/episodedownloader"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/internal/scansource"
+	"github.com/flaksp/anime365-sidecar/internal/show"
 )
 
 func NewService(

@@ -3,14 +3,14 @@ package module
 import (
 	"log/slog"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/internal/emby"
-	"github.com/flaksp/anime365-emby/internal/episode"
-	"github.com/flaksp/anime365-emby/internal/episodedownloader"
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/internal/scansource"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
-	"github.com/flaksp/anime365-emby/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/episodedownloader"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/internal/scansource"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 )
 
 var EpisodeDownloader = func(

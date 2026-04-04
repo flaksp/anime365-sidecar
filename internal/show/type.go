@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/flaksp/anime365-emby/internal/episode"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 )
 
 type (

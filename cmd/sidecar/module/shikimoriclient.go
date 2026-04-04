@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/pkg/httproundtripperwithlogger"
-	"github.com/flaksp/anime365-emby/pkg/shikimoriclient"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/pkg/httproundtripperwithlogger"
+	"github.com/flaksp/anime365-sidecar/pkg/shikimoriclient"
 )
 
 var ShikimoriClient = func(config *config.Env, logger *slog.Logger) (*shikimoriclient.Client, error) {

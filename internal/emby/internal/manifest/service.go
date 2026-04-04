@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/flaksp/anime365-emby/internal/episode"
-	"github.com/flaksp/anime365-emby/internal/show"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/show"
 )
 
 type showManifestEntry struct {

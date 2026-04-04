@@ -7,13 +7,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/flaksp/anime365-emby/internal/emby"
-	"github.com/flaksp/anime365-emby/internal/episode"
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/internal/scansource"
-	"github.com/flaksp/anime365-emby/internal/show"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
-	"github.com/flaksp/anime365-emby/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/internal/scansource"
+	"github.com/flaksp/anime365-sidecar/internal/show"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 	"golang.org/x/text/language"
 )
 

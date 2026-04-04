@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/flaksp/anime365-emby/internal/show"
+	"github.com/flaksp/anime365-sidecar/internal/show"
 )
 
 type SourceList string
