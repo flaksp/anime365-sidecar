@@ -66,15 +66,15 @@ func (c *Client) GetItems(
 
 type GetUserItemsOptionalParams struct {
 	Recursive           *bool
-	Filters             []string
+	AnyProviderIdEquals map[string]string
+	IsPlayed            *bool
 	ParentID            string
 	Path                string
-	Limit               int
-	AnyProviderIdEquals map[string]string
+	SortOrder           string
+	Filters             []string
 	IncludeItemTypes    []string
 	SortBy              []string
-	IsPlayed            *bool
-	SortOrder           string
+	Limit               int
 }
 
 func (c *Client) GetUserItems(

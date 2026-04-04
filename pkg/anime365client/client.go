@@ -231,6 +231,7 @@ func (c *Client) GetSubtitles(ctx context.Context, path string) ([]byte, error) 
 	return subtitlesBytes, nil
 }
 
+// nolint:unparam
 func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryParams url.Values, response any) error {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
@@ -351,6 +352,7 @@ func (c *Client) sendGETRequestToWeb(ctx context.Context, endpoint string, query
 	return responseBodyBytes, nil
 }
 
+// nolint:unparam
 func (c *Client) sendPOSTRequestToWeb(
 	ctx context.Context,
 	endpoint string,

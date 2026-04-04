@@ -39,7 +39,7 @@ func (w *Worker) Register(lc fx.Lifecycle) {
 				slog.Duration("interval", w.interval),
 			)
 
-			go w.loop(context.Background())
+			go w.loop(context.Background()) // nolint:contextcheck
 
 			return nil
 		},
