@@ -41,7 +41,18 @@ services:
     restart: on-failure
     environment:
       SIDECAR_ANIME365_BASE_URL: https://smotret-anime.app
-      # И прочие переменные окружения
+      SIDECAR_ANIME365_LOGIN: user@example.com
+      SIDECAR_ANIME365_PASSWORD: qwerty
+      SIDECAR_EMBY_API_KEY: d505e9041faf4447935aedd336224b05
+      SIDECAR_EMBY_BASE_URL: http://emby:8096/emby
+      SIDECAR_EMBY_LIBRARY_NAME: Anime 365
+      SIDECAR_EMBY_USER_ID: 9283b8ae8bee4ccba61174e310ff0ab1
+      SIDECAR_LIBRARY_DIRECTORY: /mnt/anime365
+      SIDECAR_METADATA_REFRESH_IDLE_INTERVAL: 1h
+      SIDECAR_SCAN_IDLE_INTERVAL: 5m
+      SIDECAR_SCAN_SOURCES: list_watching,list_planned
+      SIDECAR_SHIKIMORI_BASE_URL: https://shikimori.io
+      SIDECAR_TRANSLATIONS: ru_subtitles,ru_dub
 ```
 
 Актуальную версию Docker-образа сайдкара можно посмотреть в разделе [Packages](https://github.com/flaksp/anime365-sidecar/pkgs/container/anime365-sidecar).
