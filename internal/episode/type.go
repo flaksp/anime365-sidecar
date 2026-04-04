@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"golang.org/x/text/language"
 )
 

@@ -2,7 +2,7 @@ package module
 
 import (
 	"github.com/caarlos0/env/v11"
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
 	"github.com/joho/godotenv"
 )
 

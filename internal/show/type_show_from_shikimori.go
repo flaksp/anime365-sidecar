@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/flaksp/anime365-emby/pkg/shikimoriclient"
+	"github.com/flaksp/anime365-sidecar/pkg/shikimoriclient"
 )
 
 func NewShowFromShikimoriFromDTO(dto shikimoriclient.Anime) (ShowFromShikimori, error) {

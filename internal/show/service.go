@@ -7,9 +7,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
-	"github.com/flaksp/anime365-emby/pkg/embyclient"
-	"github.com/flaksp/anime365-emby/pkg/shikimoriclient"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
+	"github.com/flaksp/anime365-sidecar/pkg/shikimoriclient"
 )
 
 func NewService(

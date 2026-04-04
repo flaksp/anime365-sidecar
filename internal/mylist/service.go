@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/flaksp/anime365-emby/internal/show"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/internal/show"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -3,8 +3,8 @@ package startup
 import (
 	"context"
 
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 )
 
 var LoadListFromAnime365 = func(anime365Client *anime365client.Client, myListService *mylist.Service) error {

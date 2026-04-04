@@ -7,9 +7,9 @@ import (
 	"net/http/cookiejar"
 	"time"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
-	"github.com/flaksp/anime365-emby/pkg/httproundtripperwithlogger"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/httproundtripperwithlogger"
 )
 
 var Anime365Client = func(config *config.Env, logger *slog.Logger) (*anime365client.Client, error) {

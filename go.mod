@@ -1,4 +1,4 @@
-module github.com/flaksp/anime365-emby
+module github.com/flaksp/anime365-sidecar
 
 go 1.26.0
 

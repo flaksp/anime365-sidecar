@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/flaksp/anime365-emby/pkg/filesize"
+	"github.com/flaksp/anime365-sidecar/pkg/filesize"
 )
 
 func NewSimpleDownloader(

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/flaksp/anime365-emby/pkg/filesize"
+	"github.com/flaksp/anime365-sidecar/pkg/filesize"
 )
 
 type concurrentProgressLogger struct {

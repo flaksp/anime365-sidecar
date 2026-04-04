@@ -1,8 +1,8 @@
 package module
 
 import (
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/internal/scansource"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/internal/scansource"
 )
 
 var ScanSource = func(

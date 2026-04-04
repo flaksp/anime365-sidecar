@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"path/filepath"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/internal/emby"
-	"github.com/flaksp/anime365-emby/pkg/embyclient"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 )
 
 var EmbyService = func(config *config.Env, logger *slog.Logger, embyClient *embyclient.Client) (*emby.Service, error) {

@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/flaksp/anime365-emby/internal/emby"
-	"github.com/flaksp/anime365-emby/internal/episode"
-	"github.com/flaksp/anime365-emby/internal/show"
-	"github.com/flaksp/anime365-emby/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/show"
+	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 )
 
 func NewService(

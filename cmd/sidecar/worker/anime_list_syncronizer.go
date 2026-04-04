@@ -4,10 +4,10 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
-	"github.com/flaksp/anime365-emby/pkg/backgroundworker"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/pkg/backgroundworker"
 	"go.uber.org/fx"
 )
 

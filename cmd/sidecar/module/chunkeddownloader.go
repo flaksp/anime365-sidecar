@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/flaksp/anime365-emby/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 )
 
 var ChunkedDownloader = func(logger *slog.Logger) *downloader.ChunkedDownloader {

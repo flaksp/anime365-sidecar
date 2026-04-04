@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/flaksp/anime365-emby/cmd/sidecar/config"
-	"github.com/flaksp/anime365-emby/internal/mylist"
-	"github.com/flaksp/anime365-emby/pkg/anime365client"
+	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 )
 
 var LoginToAnime365 = func(config *config.Env, logger *slog.Logger, client *anime365client.Client, myListService *mylist.Service) error {
