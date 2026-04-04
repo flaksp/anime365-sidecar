@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/url"
 	"os"
 	"path"
@@ -499,6 +500,10 @@ func (s *Service) UpdateTranslationMetadata(
 
 	if !translationMarkedAsActiveAt.IsZero() {
 		translationItem.PremiereDate = translationMarkedAsActiveAt
+	}
+
+	if episodeNumber < math.MinInt32 || episodeNumber > math.MaxInt32 {
+		return errors.New("episode number is out of range int32")
 	}
 
 	translationItem.IndexNumber = int32(episodeNumber)
