@@ -23,22 +23,24 @@
 ```yaml
 services:
   emby:
-    image: emby/embyserver
+    image: emby/embyserver:latest
     container_name: emby
+    restart: on-failure
+    pull-policy: weekly
     volumes:
       - ./emby/config:/config
       - ./emby/media/anime365:/mnt/anime365
     ports:
       - "8096:8096"
       - "8920:8920"
-    restart: on-failure
 
   sidecar:
     image: ghcr.io/flaksp/anime365-sidecar:latest
     container_name: sidecar
+    restart: on-failure
+    pull-policy: weekly
     volumes:
       - ./emby/media/anime365:/mnt/anime365
-    restart: on-failure
     environment:
       SIDECAR_ANIME365_BASE_URL: https://smotret-anime.app
       SIDECAR_ANIME365_LOGIN: user@example.com
@@ -55,7 +57,7 @@ services:
       SIDECAR_TRANSLATIONS: ru_subtitles,ru_dub
 ```
 
-Актуальную версию Docker-образа сайдкара можно посмотреть в разделе [Packages](https://github.com/flaksp/anime365-sidecar/pkgs/container/anime365-sidecar).
+У сервиса `sidecar` вместо `:latest` можно использовать зафиксированную версию Docker-образа. Актуальную версию можно посмотреть в разделе [Packages](https://github.com/flaksp/anime365-sidecar/pkgs/container/anime365-sidecar).
 
 ### Запуск бинарного файла
 

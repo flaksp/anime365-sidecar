@@ -1,11 +1,11 @@
 services:
   emby:
-    image: emby/embyserver
+    image: emby/embyserver:latest
     container_name: emby
+    restart: on-failure
     volumes:
       - ./.data/emby/config:/config
       - ./.data/emby/mnt/anime365:/mnt/anime365
     ports:
       - "8096:8096"
       - "8920:8920"
-    restart: on-failure
