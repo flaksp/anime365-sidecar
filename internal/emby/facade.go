@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -216,7 +215,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		)
 	} else {
 		translationFileName = fmt.Sprintf(
-			"E%02d - %s %s by %s",
+			"E%05d - %s %s by %s",
 			episodeEntity.EpisodeNumber,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
@@ -450,16 +449,10 @@ func (s *Service) UpdateShowMetadata(
 func (s *Service) UpdateTranslationMetadata(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
-	episodeID episode.Anime365EpisodeID,
-	episodeReleaseDate time.Time,
-	episodeNumber int64,
-	translationID episode.Anime365TranslationID,
-	translationVariant episode.TranslationVariant,
-	translationAuthorsList []string,
-	translationMarkedAsActiveAt time.Time,
-	translationAnime365Priority int,
+	episodeEntity episode.Episode,
+	translationEntity episode.Translation,
 ) error {
-	translationPath, err := s.getEmbyTranslationPath(showID, episodeID, translationID)
+	translationPath, err := s.getEmbyTranslationPath(showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
 		return fmt.Errorf("failed to get translation path for %d: %w", showID, err)
 	}
@@ -473,7 +466,7 @@ func (s *Service) UpdateTranslationMetadata(
 		1,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get items from emby for translation %d: %w", translationID, err)
+		return fmt.Errorf("failed to get items from emby for translation %d: %w", translationEntity.Anime365ID, err)
 	}
 
 	if len(itemsResponse.Items) == 0 {
@@ -482,42 +475,37 @@ func (s *Service) UpdateTranslationMetadata(
 
 	translationItem := itemsResponse.Items[0]
 
-	translationItem.Name = fmt.Sprintf(
-		"%s %s by %s",
-		display.English.Languages().Name(translationVariant.Language),
-		cases.Title(language.English).String(translationVariant.Kind.Label()),
-		formatAuthorsList(translationAuthorsList),
-	)
+	translationItem.Name = episodeEntity.EpisodeLabel
 
 	translationItem.SortName = fmt.Sprintf(
 		"Episode %05d, priority %010d",
-		episodeNumber,
-		translationAnime365Priority,
+		episodeEntity.EpisodeNumber,
+		translationEntity.Anime365Priority,
 	)
 
 	translationItem.ForcedSortName = translationItem.SortName
 
-	if !translationMarkedAsActiveAt.IsZero() {
-		translationItem.PremiereDate = translationMarkedAsActiveAt
+	if !translationEntity.MarkedAsActiveAt.IsZero() {
+		translationItem.PremiereDate = translationEntity.MarkedAsActiveAt
 	}
 
-	if episodeNumber < math.MinInt32 || episodeNumber > math.MaxInt32 {
+	if episodeEntity.EpisodeNumber < math.MinInt32 || episodeEntity.EpisodeNumber > math.MaxInt32 {
 		return errors.New("episode number is out of range int32")
 	}
 
-	translationItem.IndexNumber = int32(episodeNumber)
+	translationItem.IndexNumber = int32(episodeEntity.EpisodeNumber)
 
 	translationItem.LockedFields = []embyclient.MetadataFields{
 		embyclient.NAME_MetadataFields,
 		embyclient.SORT_NAME_MetadataFields,
 	}
 
-	translationItem.PremiereDate = episodeReleaseDate
+	translationItem.PremiereDate = episodeEntity.FirstUploadedAt
 
 	translationItem.ProviderIds = &map[string]string{
 		"anime365seriesid":      strconv.FormatInt(int64(showID), 10),
-		"anime365episodeid":     strconv.FormatInt(int64(episodeID), 10),
-		"anime365translationid": strconv.FormatInt(int64(translationID), 10),
+		"anime365episodeid":     strconv.FormatInt(int64(episodeEntity.Anime365ID), 10),
+		"anime365translationid": strconv.FormatInt(int64(translationEntity.Anime365ID), 10),
 	}
 
 	err = s.embyClient.UpdateItem(ctx, translationItem.Id, translationItem)

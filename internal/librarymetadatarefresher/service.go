@@ -117,14 +117,8 @@ func (s *Service) RunOnce(ctx context.Context) error {
 				err = s.embyService.UpdateTranslationMetadata(
 					ctx,
 					showID,
-					episodeID,
-					episodeEntity.FirstUploadedAt,
-					episodeEntity.EpisodeNumber,
-					translationID,
-					translationEntity.Variant,
-					translationEntity.Authors,
-					translationEntity.MarkedAsActiveAt,
-					translationEntity.Anime365Priority,
+					episodeEntity,
+					translationEntity,
 				)
 				if err != nil {
 					if errors.Is(err, emby.ErrEmbyItemNotFound) {
