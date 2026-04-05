@@ -196,11 +196,11 @@ func (s *Service) downloadTranslation(
 	}
 
 	err = os.Rename(videoTmpFile.Name(), videoFileAbsolutePath)
-	if err != nil {
-		if errors.Is(err, syscall.EXDEV) {
-			err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath)
-		}
+	if errors.Is(err, syscall.EXDEV) {
+		err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath)
+	}
 
+	if err != nil {
 		return fmt.Errorf("failed to move video file: %w", err)
 	}
 

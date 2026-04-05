@@ -172,11 +172,11 @@ func (s *Service) downloadPosterIfNotExists(
 	}
 
 	err = os.Rename(posterTmpFile.Name(), posterFileAbsolutePath)
-	if err != nil {
-		if errors.Is(err, syscall.EXDEV) {
-			err = filesystemutils.CopyThenDelete(posterTmpFile.Name(), posterFileAbsolutePath)
-		}
+	if errors.Is(err, syscall.EXDEV) {
+		err = filesystemutils.CopyThenDelete(posterTmpFile.Name(), posterFileAbsolutePath)
+	}
 
+	if err != nil {
 		return fmt.Errorf("failed to move poster file: %w", err)
 	}
 
@@ -219,11 +219,11 @@ func (s *Service) downloadBackdropIfNotExists(
 	}
 
 	err = os.Rename(backdropTmpFile.Name(), backdropFileAbsolutePath)
-	if err != nil {
-		if errors.Is(err, syscall.EXDEV) {
-			err = filesystemutils.CopyThenDelete(backdropTmpFile.Name(), backdropFileAbsolutePath)
-		}
+	if errors.Is(err, syscall.EXDEV) {
+		err = filesystemutils.CopyThenDelete(backdropTmpFile.Name(), backdropFileAbsolutePath)
+	}
 
+	if err != nil {
 		return fmt.Errorf("failed to move backdrop file: %w", err)
 	}
 
