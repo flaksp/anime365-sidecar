@@ -26,8 +26,8 @@ services:
     image: emby/embyserver
     container_name: emby
     volumes:
-      - .data/emby/config:/config
-      - .data/emby/mnt/anime365:/mnt/anime365
+      - ./emby/config:/config
+      - ./emby/media/anime365:/mnt/anime365
     ports:
       - "8096:8096"
       - "8920:8920"
@@ -37,7 +37,7 @@ services:
     image: ghcr.io/flaksp/anime365-sidecar:latest
     container_name: sidecar
     volumes:
-      - .data/emby/mnt/anime365:/mnt/anime365
+      - ./emby/media/anime365:/mnt/anime365
     restart: on-failure
     environment:
       SIDECAR_ANIME365_BASE_URL: https://smotret-anime.app
