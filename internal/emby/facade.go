@@ -235,10 +235,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	}
 
 	if fileExists {
-		translationFileName = path.Join(
-			translationDirectoryAbsolutePath,
-			fmt.Sprintf("%s %d", translationFileName, translationEntity.Anime365ID),
-		)
+		translationFileName = fmt.Sprintf("%s %d", translationFileName, translationEntity.Anime365ID)
 	}
 
 	videoFileRelativePath := path.Join(translationDirectoryRelativePath, translationFileName+".mp4")
