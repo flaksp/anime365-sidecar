@@ -34,7 +34,7 @@ services:
     restart: on-failure
 
   sidecar:
-    image: ghcr.io/flaksp/anime365-sidecar:0.1.0
+    image: ghcr.io/flaksp/anime365-sidecar:latest
     container_name: sidecar
     volumes:
       - .data/emby/mnt/anime365:/mnt/anime365
