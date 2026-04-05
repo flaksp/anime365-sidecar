@@ -2,16 +2,19 @@ package librarymetadatarefresher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/pkg/filesystemutils"
 )
 
 func NewService(
@@ -170,6 +173,10 @@ func (s *Service) downloadPosterIfNotExists(
 
 	err = os.Rename(posterTmpFile.Name(), posterFileAbsolutePath)
 	if err != nil {
+		if errors.Is(err, syscall.EXDEV) {
+			err = filesystemutils.CopyThenDelete(posterTmpFile.Name(), posterFileAbsolutePath)
+		}
+
 		return fmt.Errorf("failed to move poster file: %w", err)
 	}
 
@@ -213,6 +220,10 @@ func (s *Service) downloadBackdropIfNotExists(
 
 	err = os.Rename(backdropTmpFile.Name(), backdropFileAbsolutePath)
 	if err != nil {
+		if errors.Is(err, syscall.EXDEV) {
+			err = filesystemutils.CopyThenDelete(backdropTmpFile.Name(), backdropFileAbsolutePath)
+		}
+
 		return fmt.Errorf("failed to move backdrop file: %w", err)
 	}
 

@@ -2,10 +2,12 @@ package episodedownloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -14,6 +16,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
+	"github.com/flaksp/anime365-sidecar/pkg/filesystemutils"
 	"golang.org/x/text/language"
 )
 
@@ -194,6 +197,10 @@ func (s *Service) downloadTranslation(
 
 	err = os.Rename(videoTmpFile.Name(), videoFileAbsolutePath)
 	if err != nil {
+		if errors.Is(err, syscall.EXDEV) {
+			err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath)
+		}
+
 		return fmt.Errorf("failed to move video file: %w", err)
 	}
 
