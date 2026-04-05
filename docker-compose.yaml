@@ -2,7 +2,7 @@ services:
   emby:
     image: emby/embyserver:latest
     container_name: emby
-    restart: on-failure
+    restart: unless-stopped
     volumes:
       - ./.data/emby/config:/config
       - ./.data/emby/mnt/anime365:/mnt/anime365

@@ -25,7 +25,7 @@ services:
   emby:
     image: emby/embyserver:latest
     container_name: emby
-    restart: on-failure
+    restart: unless-stopped
     pull-policy: weekly
     volumes:
       - ./emby/config:/config
@@ -37,7 +37,7 @@ services:
   sidecar:
     image: ghcr.io/flaksp/anime365-sidecar:latest
     container_name: sidecar
-    restart: on-failure
+    restart: unless-stopped
     pull-policy: weekly
     volumes:
       - ./emby/media/anime365:/mnt/anime365
