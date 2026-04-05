@@ -82,7 +82,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  docker-image:
+  docker_image:
     name: Docker Image
     runs-on: ubuntu-latest
 
