@@ -83,6 +83,16 @@ func (s *Service) RunOnce(ctx context.Context) error {
 			showsFromShikimori[showID],
 		)
 		if err != nil {
+			if errors.Is(err, emby.ErrEmbyItemNotFound) {
+				s.logger.DebugContext(
+					ctx,
+					"Show not found in Emby items, probably will be indexed later",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				)
+
+				continue
+			}
+
 			s.logger.ErrorContext(ctx, "Failed to update show", slog.String("error", err.Error()))
 
 			continue
@@ -117,6 +127,18 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					translationEntity.Anime365Priority,
 				)
 				if err != nil {
+					if errors.Is(err, emby.ErrEmbyItemNotFound) {
+						s.logger.DebugContext(
+							ctx,
+							"Translation not found in Emby items, probably will be indexed later",
+							slog.Int64("show_id", int64(showEntity.Anime365ID)),
+							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+							slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+						)
+
+						continue
+					}
+
 					s.logger.ErrorContext(ctx, "Failed to update translation", slog.String("error", err.Error()))
 				}
 			}

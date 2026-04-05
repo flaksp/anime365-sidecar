@@ -24,6 +24,8 @@ import (
 	"golang.org/x/text/language/display"
 )
 
+var ErrEmbyItemNotFound = errors.New("emby item not found")
+
 func NewService(
 	downloadsDirectory string,
 	embyUserID string,
@@ -310,7 +312,7 @@ func (s *Service) UpdateShowMetadata(
 	// At this moment Item in Emby may not have any metadata, so we are fetching an item by its path on disk
 	itemsResponse, err := s.embyClient.GetItems(ctx, false, []string{"IsFolder"}, s.embyLibraryItemID, embyShowPath, 1)
 	if err != nil {
-		return fmt.Errorf("failed to get items from emby for show %d: %w", showFromAnime365.Anime365ID, err)
+		return ErrEmbyItemNotFound
 	}
 
 	if len(itemsResponse.Items) == 0 {
@@ -475,7 +477,7 @@ func (s *Service) UpdateTranslationMetadata(
 	}
 
 	if len(itemsResponse.Items) == 0 {
-		return fmt.Errorf("no emby items found for translation %d", translationID)
+		return ErrEmbyItemNotFound
 	}
 
 	translationItem := itemsResponse.Items[0]
