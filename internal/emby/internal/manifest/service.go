@@ -233,6 +233,10 @@ func (s *Service) SetTranslationEntry(
 	}
 
 	// Add or update translation
+	if episodeEntry.Translations == nil {
+		episodeEntry.Translations = make(map[string]translationManifestEntry)
+	}
+
 	episodeEntry.Translations[translationIDStr] = translationEntry
 
 	// Write back episode entry
@@ -409,6 +413,10 @@ func (s *Service) AddBackdrop(
 	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
 	if !exists {
 		return errors.New("show entry does not exist")
+	}
+
+	if showEntry.Screenshots == nil {
+		showEntry.Screenshots = make(map[string]bool)
 	}
 
 	showEntry.Screenshots[screenshotID] = true
