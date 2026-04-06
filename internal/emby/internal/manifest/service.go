@@ -111,7 +111,7 @@ func (s *Service) GetShowDirectoryName(
 	return showEntry.DirectoryName, true
 }
 
-func (s *Service) SetShowEntry(
+func (s *Service) InsertShowEntry(
 	showID show.Anime365SeriesID,
 	directoryName string,
 	myAnimeListID show.MyAnimeListID,

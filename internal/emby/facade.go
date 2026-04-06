@@ -107,9 +107,11 @@ func (s *Service) CreateShowIfNotExists(
 		return fmt.Errorf("create show directory: %w", err)
 	}
 
-	err = s.manifestService.SetShowEntry(showID, showDirectoryName, myAnimeListID)
-	if err != nil {
-		return fmt.Errorf("failed to set show entry: %w", err)
+	if !showManifestEntryExists {
+		err = s.manifestService.InsertShowEntry(showID, showDirectoryName, myAnimeListID)
+		if err != nil {
+			return fmt.Errorf("failed to set show entry: %w", err)
+		}
 	}
 
 	return nil
