@@ -604,7 +604,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		SortOrder: "Descending",
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get emby user items: %w", err)
+		return 0, 0, ErrEmbyItemNotFound
 	}
 
 	if len(itemsResponse.Items) == 0 {

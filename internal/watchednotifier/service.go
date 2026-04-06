@@ -2,6 +2,7 @@ package watchednotifier
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"maps"
 
@@ -62,6 +63,16 @@ func (s *Service) RunOnce(
 	for showID := range showIDs {
 		lastWatchedEpisodeNumberInLibrary, translationID, err := s.embyService.GetLastWatchedEpisodeNumber(ctx, showID)
 		if err != nil {
+			if errors.Is(err, emby.ErrEmbyItemNotFound) {
+				s.logger.DebugContext(
+					ctx,
+					"Translation not found in Emby items, probably will be indexed later",
+					slog.Int64("show_id", int64(showID)),
+				)
+
+				continue
+			}
+
 			s.logger.ErrorContext(
 				ctx,
 				"Failed to get last watched episode number in Emby library",
