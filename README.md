@@ -45,6 +45,8 @@ services:
       SIDECAR_ANIME365_BASE_URL: https://smotret-anime.app
       SIDECAR_ANIME365_LOGIN: user@example.com
       SIDECAR_ANIME365_PASSWORD: qwerty
+      SIDECAR_DOWNLOAD_TIMEOUT_IMAGE: 1m
+      SIDECAR_DOWNLOAD_TIMEOUT_VIDEO: 1h
       SIDECAR_EMBY_API_KEY: d505e9041faf4447935aedd336224b05
       SIDECAR_EMBY_BASE_URL: http://emby:8096/emby
       SIDECAR_EMBY_LIBRARY_NAME: Anime 365
@@ -80,6 +82,18 @@ Docker Compose решает эту проблему за нас и это рек
 #### `SIDECAR_ANIME365_PASSWORD`
 
 Ваш пароль от Anime 365. Пример: `qwerty`.
+
+### `SIDECAR_DOWNLOAD_TIMEOUT_IMAGE`
+
+Насколько долго могут качаться изображения.
+
+Указывается в формате `{duration}s`, `{duration}m` или `{duration}h`. Примеры: `30s`, `15m`, `1h` и `1h30m`. По умолчанию имеет значение `1m`. Под капотом используется функция [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration), так что можно передать любую валидную строку.
+
+### `SIDECAR_DOWNLOAD_TIMEOUT_VIDEO`
+
+Насколько долго может качаться видео-файл.
+
+Указывается в формате `{duration}s`, `{duration}m` или `{duration}h`. Примеры: `30s`, `15m`, `1h` и `1h30m`. По умолчанию имеет значение `1h`. Под капотом используется функция [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration), так что можно передать любую валидную строку.
 
 #### `SIDECAR_EMBY_API_KEY`
 

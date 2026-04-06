@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -29,28 +30,31 @@ func NewService(
 	smartDownloader *downloader.SmartDownloader,
 	anime365Client *anime365client.Client,
 	translations []string,
+	downloadVideoTimeout time.Duration,
 ) *Service {
 	return &Service{
-		myListService:       myListService,
-		scanSource:          scanSource,
-		episodeService:      episodeService,
-		logger:              logger,
-		embyService:         embyService,
-		downloader:          smartDownloader,
-		anime365Client:      anime365Client,
-		translationVariants: parseTranslationVariants(translations, logger),
+		myListService:        myListService,
+		scanSource:           scanSource,
+		episodeService:       episodeService,
+		logger:               logger,
+		embyService:          embyService,
+		downloader:           smartDownloader,
+		anime365Client:       anime365Client,
+		translationVariants:  parseTranslationVariants(translations, logger),
+		downloadVideoTimeout: downloadVideoTimeout,
 	}
 }
 
 type Service struct {
-	myListService       *mylist.Service
-	scanSource          *scansource.Service
-	episodeService      *episode.Service
-	logger              *slog.Logger
-	embyService         *emby.Service
-	downloader          *downloader.SmartDownloader
-	anime365Client      *anime365client.Client
-	translationVariants map[episode.TranslationVariant]struct{}
+	myListService        *mylist.Service
+	scanSource           *scansource.Service
+	episodeService       *episode.Service
+	logger               *slog.Logger
+	embyService          *emby.Service
+	downloader           *downloader.SmartDownloader
+	anime365Client       *anime365client.Client
+	translationVariants  map[episode.TranslationVariant]struct{}
+	downloadVideoTimeout time.Duration
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
@@ -167,8 +171,11 @@ func (s *Service) downloadTranslation(
 		}
 	}()
 
+	videoDownloadCtxWithTimeout, videoDownloadCtxCancel := context.WithTimeout(ctx, s.downloadVideoTimeout)
+	defer videoDownloadCtxCancel()
+
 	err = s.downloader.Download(
-		ctx,
+		videoDownloadCtxWithTimeout,
 		translationMedia.VideoURL,
 		videoTmpFile,
 	)

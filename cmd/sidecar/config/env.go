@@ -7,8 +7,8 @@ import (
 
 type Env struct {
 	Anime365BaseURL             *url.URL      `env:"SIDECAR_ANIME365_BASE_URL,required,notEmpty"`
-	EmbyBaseURL                 *url.URL      `env:"SIDECAR_EMBY_BASE_URL,required,notEmpty"`
 	ShikimoriBaseURL            *url.URL      `env:"SIDECAR_SHIKIMORI_BASE_URL,required,notEmpty"`
+	EmbyBaseURL                 *url.URL      `env:"SIDECAR_EMBY_BASE_URL,required,notEmpty"`
 	Anime365Login               string        `env:"SIDECAR_ANIME365_LOGIN,required,notEmpty"`
 	Anime365Password            string        `env:"SIDECAR_ANIME365_PASSWORD,required,notEmpty"`
 	EmbyAPIKey                  string        `env:"SIDECAR_EMBY_API_KEY,required,notEmpty"`
@@ -19,4 +19,6 @@ type Env struct {
 	Translations                []string      `env:"SIDECAR_TRANSLATIONS,required,notEmpty"                   envDefault:"ru_subtitles,ru_dub"`
 	ScanIdleInterval            time.Duration `env:"SIDECAR_SCAN_IDLE_INTERVAL,required,notEmpty"             envDefault:"5m"`
 	MetadataRefreshIdleInterval time.Duration `env:"SIDECAR_METADATA_REFRESH_IDLE_INTERVAL,required,notEmpty" envDefault:"1h"`
+	DownloadTimeoutVideo        time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_VIDEO,required,notEmpty"         envDefault:"1h"`
+	DownloadTimeoutImage        time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_IMAGE,required,notEmpty"         envDefault:"1m"`
 }

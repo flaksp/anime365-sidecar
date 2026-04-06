@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -23,22 +24,25 @@ func NewService(
 	embyService *emby.Service,
 	smartDownloader *downloader.SmartDownloader,
 	logger *slog.Logger,
+	downloadImageTimeout time.Duration,
 ) *Service {
 	return &Service{
-		showService:    showService,
-		episodeService: episodeService,
-		embyService:    embyService,
-		downloader:     smartDownloader,
-		logger:         logger,
+		showService:          showService,
+		episodeService:       episodeService,
+		embyService:          embyService,
+		downloader:           smartDownloader,
+		logger:               logger,
+		downloadImageTimeout: downloadImageTimeout,
 	}
 }
 
 type Service struct {
-	showService    *show.Service
-	episodeService *episode.Service
-	embyService    *emby.Service
-	downloader     *downloader.SmartDownloader
-	logger         *slog.Logger
+	showService          *show.Service
+	episodeService       *episode.Service
+	embyService          *emby.Service
+	downloader           *downloader.SmartDownloader
+	logger               *slog.Logger
+	downloadImageTimeout time.Duration
 }
 
 func (s *Service) RunOnce(ctx context.Context) error {
@@ -174,7 +178,10 @@ func (s *Service) downloadPosterIfNotExists(
 		}
 	}()
 
-	err = s.downloader.Download(ctx, showEntity.PosterURL, posterTmpFile)
+	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
+	defer imageDownloadCtxCancel()
+
+	err = s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFile)
 	if err != nil {
 		return fmt.Errorf("failed to download poster: %w", err)
 	}
@@ -224,7 +231,10 @@ func (s *Service) downloadBackdropIfNotExists(
 		}
 	}()
 
-	err = s.downloader.Download(ctx, imageURL, backdropTmpFile)
+	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
+	defer imageDownloadCtxCancel()
+
+	err = s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFile)
 	if err != nil {
 		return fmt.Errorf("failed to download backdrop: %w", err)
 	}
