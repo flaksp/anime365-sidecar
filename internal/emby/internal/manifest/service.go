@@ -408,7 +408,7 @@ func (s *Service) AddBackdrop(
 
 	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
 	if !exists {
-		return errors.New("show entry already exists")
+		return errors.New("show entry does not exist")
 	}
 
 	showEntry.Screenshots[screenshotID] = true
