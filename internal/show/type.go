@@ -25,9 +25,11 @@ type Show struct {
 	TitleRomaji      string
 	TitleRussian     string
 	Description      string
-	EpisodePreviews  []EpisodePreview
-	Genres           []string
+	TypeLabel        string
+	SeasonLabel      string
 	Links            []ExternalNamedLink
+	Genres           []string
+	EpisodePreviews  []EpisodePreview
 	Anime365ID       Anime365SeriesID
 	MyAnimeListID    MyAnimeListID
 	MyAnimeListScore float64
@@ -52,6 +54,8 @@ func NewShow(series anime365client.Series) (Show, error) {
 		IsOngoing:     series.IsAiring == 1,
 		Year:          series.Year,
 		Links:         make([]ExternalNamedLink, 0, len(series.Links)),
+		SeasonLabel:   series.Season,
+		TypeLabel:     series.TypeTitle,
 	}
 
 	if myAnimeListScore, err := strconv.ParseFloat(series.MyAnimeListScore, 64); err == nil && myAnimeListScore > 0 {

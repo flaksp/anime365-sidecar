@@ -7,22 +7,24 @@ type Series struct {
 	} `json:"titles"`
 	MyAnimeListScore string `json:"myAnimeListScore"`
 	PosterURL        string `json:"posterUrl"`
-	Episodes         []struct {
-		EpisodeInt  string `json:"episodeInt"`
-		EpisodeType string `json:"episodeType"`
-		ID          int64  `json:"id"`
-	} `json:"episodes"`
+	Season           string `json:"season"`
+	TypeTitle        string `json:"typeTitle"`
+	Links            []struct {
+		Title string `json:"title"`
+		URL   string `json:"url"`
+	}
+	Genres []struct {
+		Title string `json:"title"`
+	} `json:"genres"`
 	Descriptions []struct {
 		Source string `json:"source"`
 		Value  string `json:"value"`
 	} `json:"descriptions"`
-	Genres []struct {
-		Title string `json:"title"`
-	} `json:"genres"`
-	Links []struct {
-		Title string `json:"title"`
-		URL   string `json:"url"`
-	}
+	Episodes []struct {
+		EpisodeInt  string `json:"episodeInt"`
+		EpisodeType string `json:"episodeType"`
+		ID          int64  `json:"id"`
+	} `json:"episodes"`
 	ID            int64 `json:"id"`
 	Year          int   `json:"year"`
 	IsAiring      int   `json:"isAiring"`

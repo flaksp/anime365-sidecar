@@ -343,6 +343,17 @@ func (s *Service) UpdateShowMetadata(
 		showItem.Overview = showFromAnime365.Description
 	}
 
+	if showFromAnime365.TypeLabel != "" && showFromAnime365.SeasonLabel != "" {
+		showItem.Taglines = []string{fmt.Sprintf("%s, %s", showFromAnime365.TypeLabel, showFromAnime365.SeasonLabel)}
+		showItem.Tags = []string{showFromAnime365.TypeLabel, showFromAnime365.SeasonLabel}
+	} else if showFromAnime365.SeasonLabel != "" {
+		showItem.Taglines = []string{showFromAnime365.SeasonLabel}
+		showItem.Tags = []string{showFromAnime365.SeasonLabel}
+	} else if showFromAnime365.TypeLabel != "" {
+		showItem.Taglines = []string{showFromAnime365.TypeLabel}
+		showItem.Tags = []string{showFromAnime365.TypeLabel}
+	}
+
 	if len(showFromAnime365.Genres) > 0 {
 		showItem.Genres = showFromAnime365.Genres
 	}
@@ -437,6 +448,8 @@ func (s *Service) UpdateShowMetadata(
 		embyclient.STUDIOS_MetadataFields,
 		embyclient.OFFICIAL_RATING_MetadataFields,
 		embyclient.CAST_MetadataFields,
+		embyclient.TAGLINE_MetadataFields,
+		embyclient.TAGS_MetadataFields,
 	}
 
 	err = s.embyClient.UpdateItem(ctx, showItem.Id, showItem)
