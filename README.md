@@ -52,6 +52,7 @@ services:
       SIDECAR_EMBY_LIBRARY_NAME: Anime 365
       SIDECAR_EMBY_USER_ID: 9283b8ae8bee4ccba61174e310ff0ab1
       SIDECAR_LIBRARY_DIRECTORY: /mnt/anime365
+      SIDECAR_LOG_LEVEL: INFO
       SIDECAR_METADATA_REFRESH_IDLE_INTERVAL: 1h
       SIDECAR_SCAN_IDLE_INTERVAL: 5m
       SIDECAR_SCAN_SOURCES: list_watching,list_planned
@@ -118,6 +119,12 @@ ID вашего пользователя в Emby. Пример: `9283b8ae8bee4cc
 #### `SIDECAR_LIBRARY_DIRECTORY`
 
 Куда сайдкар будет класть файлы на диске. Укажите полный путь до директории. Это должна быть та же директория, которую вы выбрали при создании Library в Emby. Примеры: `/Users/p.flaks/Downloads/anime365` (Linux, macOS); `D:\anime365` (Windows).
+
+### `SIDECAR_LOG_LEVEL`
+
+Уровень логов.
+
+Возможные значения: `DEBUG` (максимальное логирование), `INFO`, `WARN`, `ERROR`. По умолчанию имеет значение `INFO`.
 
 #### `SIDECAR_METADATA_REFRESH_IDLE_INTERVAL`
 
