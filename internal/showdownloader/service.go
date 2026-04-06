@@ -2,6 +2,7 @@ package showdownloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -69,6 +70,16 @@ func (s *Service) RunOnce(
 			showID,
 		)
 		if err != nil {
+			if errors.Is(err, ErrShowHasNoEpisodes) {
+				s.logger.DebugContext(
+					ctx,
+					"Show does not have episodes on Anime 365, skipping it",
+					slog.Int64("show_id", int64(showID)),
+				)
+
+				continue
+			}
+
 			s.logger.ErrorContext(
 				ctx,
 				"Failed to download show, skipping it",
@@ -83,6 +94,8 @@ func (s *Service) RunOnce(
 	return nil
 }
 
+var ErrShowHasNoEpisodes = errors.New("show doesn't have uploaded episodes")
+
 func (s *Service) downloadShow(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
@@ -90,6 +103,10 @@ func (s *Service) downloadShow(
 	showEntity, err := s.showService.GetShow(ctx, showID)
 	if err != nil {
 		return fmt.Errorf("failed to get show: %w", err)
+	}
+
+	if len(showEntity.EpisodePreviews) == 0 {
+		return ErrShowHasNoEpisodes
 	}
 
 	err = s.embyService.CreateShowIfNotExists(showID, showEntity.TitleRomaji, showEntity.MyAnimeListID)
