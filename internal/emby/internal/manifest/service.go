@@ -51,12 +51,11 @@ type Service struct {
 	logger             *slog.Logger
 	downloadsDirectory string
 	mu                 sync.RWMutex
-	manifestFileMu     sync.RWMutex
 }
 
 func (s *Service) LoadFromDisk(ctx context.Context) error {
-	s.manifestFileMu.RLock()
-	defer s.manifestFileMu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	data, err := os.ReadFile(s.manifestFilePath())
 	if err != nil {
@@ -433,9 +432,6 @@ func (s *Service) AddBackdrop(
 }
 
 func (s *Service) saveToDisk() error {
-	s.manifestFileMu.Lock()
-	defer s.manifestFileMu.Unlock()
-
 	data, err := json.MarshalIndent(s.inMemoryManifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal data: %w", err)
