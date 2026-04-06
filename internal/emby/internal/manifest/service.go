@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -441,5 +441,5 @@ func (s *Service) saveToDisk() error {
 }
 
 func (s *Service) manifestFilePath() string {
-	return path.Join(s.downloadsDirectory, "manifest.json")
+	return filepath.Join(s.downloadsDirectory, "manifest.json")
 }

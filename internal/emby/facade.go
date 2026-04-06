@@ -8,7 +8,6 @@ import (
 	"math"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -101,7 +100,7 @@ func (s *Service) CreateShowIfNotExists(
 		showDirectoryName = computedShowDirectoryName
 	}
 
-	showDirectoryAbsolutePath := path.Join(s.downloadsDirectory, showDirectoryName)
+	showDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, showDirectoryName)
 
 	err := s.createDirectoryIfNotExists(showDirectoryAbsolutePath)
 	if err != nil {
@@ -139,7 +138,7 @@ func (s *Service) DeleteTranslation(
 		translationID,
 	)
 	if exists {
-		videoFileAbsolutePath := path.Join(s.downloadsDirectory, videoFileRelativePath)
+		videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
 
 		err := s.deleteFileIfExists(videoFileAbsolutePath)
 		if err != nil {
@@ -147,7 +146,7 @@ func (s *Service) DeleteTranslation(
 		}
 
 		if subtitlesFileRelativePath != "" {
-			subtitlesFileAbsolutePath := path.Join(s.downloadsDirectory, subtitlesFileRelativePath)
+			subtitlesFileAbsolutePath := filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
 
 			err := s.deleteFileIfExists(subtitlesFileAbsolutePath)
 			if err != nil {
@@ -182,8 +181,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	)
 
 	if episodeEntity.IsTrailer {
-		translationDirectoryRelativePath = path.Join(showDirectoryName, "Trailers")
-		translationDirectoryAbsolutePath = path.Join(s.downloadsDirectory, translationDirectoryRelativePath)
+		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Trailers")
+		translationDirectoryAbsolutePath = filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
 
 		err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath)
 		if err != nil {
@@ -198,8 +197,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 			formatAuthorsList(translationEntity.Authors),
 		)
 	} else if episodeEntity.IsSpecial {
-		translationDirectoryRelativePath = path.Join(showDirectoryName, "Specials")
-		translationDirectoryAbsolutePath = path.Join(s.downloadsDirectory, translationDirectoryRelativePath)
+		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Specials")
+		translationDirectoryAbsolutePath = filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
 
 		err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath)
 		if err != nil {
@@ -223,14 +222,14 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		)
 
 		translationDirectoryRelativePath = showDirectoryName
-		translationDirectoryAbsolutePath = path.Join(s.downloadsDirectory, translationDirectoryRelativePath)
+		translationDirectoryAbsolutePath = filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
 	}
 
 	translationFileName = filename.Clean(translationFileName)
 	translationFileName = strings.TrimSpace(translationFileName)
 	translationFileName = strings.Join(strings.Fields(translationFileName), " ")
 
-	fileExists, err := s.fileExists(path.Join(translationDirectoryAbsolutePath, translationFileName+".mp4"))
+	fileExists, err := s.fileExists(filepath.Join(translationDirectoryAbsolutePath, translationFileName+".mp4"))
 	if err != nil {
 		return "", "", fmt.Errorf("failed to check if video file exists: %w", err)
 	}
@@ -239,8 +238,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		translationFileName = fmt.Sprintf("%s %d", translationFileName, translationEntity.Anime365ID)
 	}
 
-	videoFileRelativePath := path.Join(translationDirectoryRelativePath, translationFileName+".mp4")
-	videoFileAbsolutePath := path.Join(s.downloadsDirectory, videoFileRelativePath)
+	videoFileRelativePath := filepath.Join(translationDirectoryRelativePath, translationFileName+".mp4")
+	videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
 
 	var (
 		subtitlesFileRelativePath string
@@ -248,8 +247,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	)
 
 	if translationMedia.SubtitlesURL != nil {
-		subtitlesFileRelativePath = path.Join(translationDirectoryRelativePath, translationFileName+".ass")
-		subtitlesFileAbsolutePath = path.Join(s.downloadsDirectory, subtitlesFileRelativePath)
+		subtitlesFileRelativePath = filepath.Join(translationDirectoryRelativePath, translationFileName+".ass")
+		subtitlesFileAbsolutePath = filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
 	}
 
 	return videoFileAbsolutePath, subtitlesFileAbsolutePath, nil
@@ -711,7 +710,7 @@ func (s *Service) getEmbyShowPath(showID show.Anime365SeriesID) (string, error) 
 		return "", fmt.Errorf("could not find show %d in manifest", showID)
 	}
 
-	return path.Join(s.embyLibraryRootDirectory, showDirectoryName), nil
+	return filepath.Join(s.embyLibraryRootDirectory, showDirectoryName), nil
 }
 
 func (s *Service) getEmbyTranslationPath(
@@ -728,7 +727,7 @@ func (s *Service) getEmbyTranslationPath(
 		return "", fmt.Errorf("could not find translation %d in manifest", translationID)
 	}
 
-	return path.Join(s.embyLibraryRootDirectory, translationRelativeFilePath), nil
+	return filepath.Join(s.embyLibraryRootDirectory, translationRelativeFilePath), nil
 }
 
 func formatAuthorsList(authorsList []string) string {
