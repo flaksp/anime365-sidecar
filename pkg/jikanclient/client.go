@@ -76,15 +76,15 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	if c.rateLimiterPerSecond != nil {
-		if err := c.rateLimiterPerSecond.Wait(ctx); err != nil {
-			return fmt.Errorf("per-second rate limit: %w", err)
-		}
-	}
-
 	if c.rateLimiterPerMinute != nil {
 		if err := c.rateLimiterPerMinute.Wait(ctx); err != nil {
 			return fmt.Errorf("per-minute rate limit: %w", err)
+		}
+	}
+
+	if c.rateLimiterPerSecond != nil {
+		if err := c.rateLimiterPerSecond.Wait(ctx); err != nil {
+			return fmt.Errorf("per-second rate limit: %w", err)
 		}
 	}
 
