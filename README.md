@@ -84,13 +84,13 @@ Docker Compose решает эту проблему за нас и это рек
 
 Ваш пароль от Anime 365. Пример: `qwerty`.
 
-### `SIDECAR_DOWNLOAD_TIMEOUT_IMAGE`
+#### `SIDECAR_DOWNLOAD_TIMEOUT_IMAGE`
 
 Насколько долго могут качаться изображения.
 
 Указывается в формате `{duration}s`, `{duration}m` или `{duration}h`. Примеры: `30s`, `15m`, `1h` и `1h30m`. По умолчанию имеет значение `1m`. Под капотом используется функция [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration), так что можно передать любую валидную строку.
 
-### `SIDECAR_DOWNLOAD_TIMEOUT_VIDEO`
+#### `SIDECAR_DOWNLOAD_TIMEOUT_VIDEO`
 
 Насколько долго может качаться видео-файл.
 
@@ -126,7 +126,7 @@ Jikan - это сервис, который парсит данные с MyAnime
 
 Куда сайдкар будет класть файлы на диске. Укажите полный путь до директории. Это должна быть та же директория, которую вы выбрали при создании Library в Emby. Примеры: `/Users/p.flaks/Downloads/anime365` (Linux, macOS); `D:\anime365` (Windows).
 
-### `SIDECAR_LOG_LEVEL`
+#### `SIDECAR_LOG_LEVEL`
 
 Уровень логов.
 
