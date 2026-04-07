@@ -10,6 +10,7 @@ type Env struct {
 	Anime365BaseURL             *url.URL      `env:"SIDECAR_ANIME365_BASE_URL,required,notEmpty"`
 	EmbyBaseURL                 *url.URL      `env:"SIDECAR_EMBY_BASE_URL,required,notEmpty"`
 	ShikimoriBaseURL            *url.URL      `env:"SIDECAR_SHIKIMORI_BASE_URL,required,notEmpty"`
+	JikanAPIBaseURL             *url.URL      `env:"SIDECAR_JIKAN_API_BASE_URL,required,notEmpty"             envDefault:"https://api.jikan.moe"`
 	Anime365Login               string        `env:"SIDECAR_ANIME365_LOGIN,required,notEmpty"`
 	Anime365Password            string        `env:"SIDECAR_ANIME365_PASSWORD,required,notEmpty"`
 	EmbyAPIKey                  string        `env:"SIDECAR_EMBY_API_KEY,required,notEmpty"`

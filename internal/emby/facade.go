@@ -313,7 +313,13 @@ func (s *Service) UpdateShowMetadata(
 	}
 
 	// At this moment Item in Emby may not have any metadata, so we are fetching an item by its path on disk
-	itemsResponse, err := s.embyClient.GetItems(ctx, false, []string{"IsFolder"}, s.embyLibraryItemID, embyShowPath, 1)
+	itemsResponse, err := s.embyClient.GetItems(ctx, &embyclient.GetItemsOptionalParams{
+		Recursive: new(false),
+		Filters:   []string{"IsFolder"},
+		ParentID:  s.embyLibraryItemID,
+		Path:      embyShowPath,
+		Limit:     1,
+	})
 	if err != nil {
 		return ErrEmbyItemNotFound
 	}
@@ -468,6 +474,7 @@ func (s *Service) UpdateTranslationMetadata(
 	showID show.Anime365SeriesID,
 	episodeEntity episode.Episode,
 	translationEntity episode.Translation,
+	episodeMetadataFromJikan episode.MetadataFromJikan,
 ) error {
 	translationPath, err := s.getEmbyTranslationPath(showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
@@ -476,11 +483,13 @@ func (s *Service) UpdateTranslationMetadata(
 
 	itemsResponse, err := s.embyClient.GetItems(
 		ctx,
-		true,
-		[]string{"IsNotFolder"},
-		s.embyLibraryItemID,
-		translationPath,
-		1,
+		&embyclient.GetItemsOptionalParams{
+			Recursive: new(true),
+			Filters:   []string{"IsNotFolder"},
+			ParentID:  s.embyLibraryItemID,
+			Path:      translationPath,
+			Limit:     1,
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to get items from emby for translation %d: %w", translationEntity.Anime365ID, err)
@@ -492,7 +501,11 @@ func (s *Service) UpdateTranslationMetadata(
 
 	translationItem := itemsResponse.Items[0]
 
-	translationItem.Name = episodeEntity.EpisodeLabel
+	if episodeMetadataFromJikan.Title != "" {
+		translationItem.Name = episodeMetadataFromJikan.Title
+	} else {
+		translationItem.Name = episodeEntity.EpisodeLabel
+	}
 
 	translationItem.SortName = fmt.Sprintf(
 		"Episode %05d, priority %010d",
@@ -502,8 +515,33 @@ func (s *Service) UpdateTranslationMetadata(
 
 	translationItem.ForcedSortName = translationItem.SortName
 
-	if !translationEntity.MarkedAsActiveAt.IsZero() {
+	if !episodeMetadataFromJikan.AiredAt.IsZero() {
+		translationItem.PremiereDate = episodeMetadataFromJikan.AiredAt
+
+		year := episodeMetadataFromJikan.AiredAt.Year()
+
+		if year >= math.MinInt32 && year <= math.MaxInt32 {
+			translationItem.ProductionYear = int32(year)
+		}
+	} else if !translationEntity.MarkedAsActiveAt.IsZero() {
 		translationItem.PremiereDate = translationEntity.MarkedAsActiveAt
+	} else if !episodeEntity.FirstUploadedAt.IsZero() {
+		translationItem.PremiereDate = episodeEntity.FirstUploadedAt
+	}
+
+	if episodeMetadataFromJikan.Description != "" {
+		translationItem.Overview = oneOrMoreLineBreaksRegexp.ReplaceAllString(
+			episodeMetadataFromJikan.Description,
+			"\n\n",
+		)
+	}
+
+	if episodeMetadataFromJikan.MyAnimeListScore > 0 {
+		if episodeMetadataFromJikan.MyAnimeListScore > math.MaxInt32 {
+			return errors.New("episode score is out of range int32")
+		}
+
+		translationItem.CommunityRating = float32(episodeMetadataFromJikan.MyAnimeListScore)
 	}
 
 	if episodeEntity.EpisodeNumber < math.MinInt32 || episodeEntity.EpisodeNumber > math.MaxInt32 {
@@ -512,12 +550,25 @@ func (s *Service) UpdateTranslationMetadata(
 
 	translationItem.IndexNumber = int32(episodeEntity.EpisodeNumber)
 
+	tags := make([]string, 0)
+
+	if episodeMetadataFromJikan.IsFiller {
+		tags = append(tags, "Филлер")
+	}
+
+	if episodeMetadataFromJikan.IsRecap {
+		tags = append(tags, "Рекап")
+	}
+
+	translationItem.Tags = tags
+
 	translationItem.LockedFields = []embyclient.MetadataFields{
 		embyclient.NAME_MetadataFields,
 		embyclient.SORT_NAME_MetadataFields,
+		embyclient.TAGS_MetadataFields,
+		embyclient.OVERVIEW_MetadataFields,
+		embyclient.COMMUNITY_RATING_MetadataFields,
 	}
-
-	translationItem.PremiereDate = episodeEntity.FirstUploadedAt
 
 	translationItem.ProviderIds = &map[string]string{
 		"anime365seriesid":      strconv.FormatInt(int64(showID), 10),

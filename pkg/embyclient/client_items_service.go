@@ -8,13 +8,19 @@ import (
 	"strings"
 )
 
+type GetItemsOptionalParams struct {
+	Recursive           *bool
+	AnyProviderIdEquals map[string]string
+	ParentID            string
+	Path                string
+	Filters             []string
+	IncludeItemTypes    []string
+	Limit               int
+}
+
 func (c *Client) GetItems(
 	ctx context.Context,
-	recursive bool,
-	filters []string,
-	parentID string,
-	path string,
-	limit int,
+	optionalParams *GetItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
 	fields := []string{
 		"Budget",
@@ -37,24 +43,41 @@ func (c *Client) GetItems(
 	}
 
 	queryParams := url.Values{
-		"Fields":    {strings.Join(fields, ",")},
-		"Recursive": []string{strconv.FormatBool(recursive)},
+		"Fields": {strings.Join(fields, ",")},
 	}
 
-	if filters != nil {
-		queryParams.Add("Filters", strings.Join(filters, ","))
+	if optionalParams.Filters != nil {
+		queryParams.Add("Filters", strings.Join(optionalParams.Filters, ","))
 	}
 
-	if parentID != "" {
-		queryParams.Add("ParentId", parentID)
+	if optionalParams.ParentID != "" {
+		queryParams.Add("ParentId", optionalParams.ParentID)
 	}
 
-	if path != "" {
-		queryParams.Add("Path", path)
+	if optionalParams.Path != "" {
+		queryParams.Add("Path", optionalParams.Path)
 	}
 
-	if limit > 0 {
-		queryParams.Add("Limit", strconv.Itoa(limit))
+	if optionalParams.Limit > 0 {
+		queryParams.Add("Limit", strconv.Itoa(optionalParams.Limit))
+	}
+
+	if optionalParams.AnyProviderIdEquals != nil {
+		providerIDs := make([]string, 0, len(optionalParams.AnyProviderIdEquals))
+
+		for providerName, id := range optionalParams.AnyProviderIdEquals {
+			providerIDs = append(providerIDs, fmt.Sprintf("%s.%s", providerName, id))
+		}
+
+		queryParams.Add("AnyProviderIdEquals", strings.Join(providerIDs, ","))
+	}
+
+	if optionalParams.IncludeItemTypes != nil {
+		queryParams.Add("IncludeItemTypes", strings.Join(optionalParams.IncludeItemTypes, ","))
+	}
+
+	if optionalParams.Recursive != nil {
+		queryParams.Add("Recursive", strconv.FormatBool(*optionalParams.Recursive))
 	}
 
 	var response QueryResultBaseItemDto

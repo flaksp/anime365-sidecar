@@ -110,6 +110,42 @@ func (s *Service) RunOnce(ctx context.Context) error {
 				continue
 			}
 
+			var episodeMetadataFromJikan episode.MetadataFromJikan
+
+			if episodeEntity.EpisodeNumber > 0 {
+				episodeMetadataFromJikan, err = s.episodeService.GetEpisodeMetadataFromJikan(
+					ctx,
+					int64(showEntity.MyAnimeListID),
+					episodeEntity.EpisodeNumber,
+				)
+				if err != nil {
+					if errors.Is(err, episode.ErrJikanEpisodeNotFound) {
+						s.logger.DebugContext(
+							ctx,
+							"Episode not found on Jikan, skipping it",
+							slog.Int64("show_id", int64(showEntity.Anime365ID)),
+							slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
+							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+							slog.Int64("episode_number", episodeEntity.EpisodeNumber),
+						)
+
+						continue
+					}
+
+					s.logger.ErrorContext(
+						ctx,
+						"Failed to get episode metadata from Jikan",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("episode_number", episodeEntity.EpisodeNumber),
+						slog.String("error", err.Error()),
+					)
+
+					continue
+				}
+			}
+
 			for translationID := range items {
 				translationEntity, err := s.episodeService.GetTranslation(ctx, translationID)
 				if err != nil {
@@ -123,6 +159,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					showID,
 					episodeEntity,
 					translationEntity,
+					episodeMetadataFromJikan,
 				)
 				if err != nil {
 					if errors.Is(err, emby.ErrEmbyItemNotFound) {

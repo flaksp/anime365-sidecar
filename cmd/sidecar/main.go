@@ -26,6 +26,7 @@ func main() {
 		fx.Provide(module.Anime365Client),
 		fx.Provide(module.EmbyClient),
 		fx.Provide(module.ShikimoriClient),
+		fx.Provide(module.JikanClient),
 		fx.Provide(module.EmbyService),
 		fx.Provide(showdownloader.NewService),
 		fx.Provide(module.EpisodeDownloader),
