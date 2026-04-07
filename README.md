@@ -152,7 +152,9 @@ Jikan - это сервис, который парсит данные с MyAnime
 
 #### `SIDECAR_SHIKIMORI_BASE_URL`
 
-Адрес Shikimori. Пример: `https://shikimori.io`.
+Адрес Shikimori. Пример: `https://shikimori.io`. Значение по умолчанию: `https://shikimori.io`.
+
+Shikimori - это русскоязычный аналог MyAnimeList. Сайдкар подтягивает оттуда информацию о тайтлах, которой нет в Anime 365.
 
 #### `SIDECAR_TRANSLATIONS`
 
