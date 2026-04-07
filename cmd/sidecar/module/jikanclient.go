@@ -19,7 +19,10 @@ var JikanClient = func(config *config.Env, logger *slog.Logger) (*jikanclient.Cl
 		},
 		5*time.Second,
 		logger,
-		rate.NewLimiter(rate.Limit(3), 3),
-		rate.NewLimiter(rate.Every(time.Minute/60), 10),
+		rate.NewLimiter(rate.Limit(2), 3), //  Actual limit is 3 RPS, but we are limiting to 2 RPS + burst of 3
+		rate.NewLimiter(
+			rate.Every(time.Minute/40),
+			60,
+		), //  Actual limit is 60 RPM, but we are limiting to 40 RPM + burst of 60
 	), nil
 }
