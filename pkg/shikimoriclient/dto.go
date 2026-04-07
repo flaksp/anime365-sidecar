@@ -10,7 +10,7 @@ type Anime struct {
 	ReleasedOn  *IncompleteDate  `json:"releasedOn"`
 	Duration    *int             `json:"duration"`
 	ID          string           `json:"id"`
-	Status      string           `json:"status"`
+	Status      *AnimeStatusEnum `json:"status"`
 	Studios     []Studio         `json:"studios"`
 	Screenshots []Screenshot     `json:"screenshots"`
 	PersonRoles []PersonRole     `json:"personRoles"`
@@ -50,4 +50,12 @@ const (
 	AnimeRatingEnumR     AnimeRatingEnum = "r"
 	AnimeRatingEnumRPlus AnimeRatingEnum = "r_plus"
 	AnimeRatingEnumRx    AnimeRatingEnum = "rx"
+)
+
+type AnimeStatusEnum string
+
+const (
+	AnimeStatusEnumAnons    AnimeStatusEnum = "anons"
+	AnimeStatusEnumOngoing  AnimeStatusEnum = "ongoing"
+	AnimeStatusEnumReleased AnimeStatusEnum = "released"
 )

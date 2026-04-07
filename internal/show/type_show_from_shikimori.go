@@ -42,6 +42,19 @@ func NewShowFromShikimoriFromDTO(dto shikimoriclient.Anime) (ShowFromShikimori, 
 		)
 	}
 
+	if dto.Status != nil {
+		switch *dto.Status {
+		case shikimoriclient.AnimeStatusEnumAnons:
+			res.AiringStatus = AiringStatusAnons
+
+		case shikimoriclient.AnimeStatusEnumOngoing:
+			res.AiringStatus = AiringStatusOngoing
+
+		case shikimoriclient.AnimeStatusEnumReleased:
+			res.AiringStatus = AiringStatusReleased
+		}
+	}
+
 	if dto.ReleasedOn != nil && dto.ReleasedOn.Day != nil && *dto.ReleasedOn.Day > 0 && dto.ReleasedOn.Month != nil &&
 		*dto.ReleasedOn.Month > 0 &&
 		dto.ReleasedOn.Year != nil &&
@@ -56,7 +69,7 @@ func NewShowFromShikimoriFromDTO(dto shikimoriclient.Anime) (ShowFromShikimori, 
 			0,
 			time.UTC,
 		)
-	} else if dto.Status == "released" {
+	} else if dto.Status != nil && *dto.Status == shikimoriclient.AnimeStatusEnumReleased {
 		res.StoppedAiringAt = res.PremiereDate
 	}
 
@@ -116,10 +129,19 @@ func NewShowFromShikimoriFromDTO(dto shikimoriclient.Anime) (ShowFromShikimori, 
 	return res, nil
 }
 
+type AiringStatus string
+
+const (
+	AiringStatusAnons    AiringStatus = "anons"
+	AiringStatusOngoing  AiringStatus = "ongoing"
+	AiringStatusReleased AiringStatus = "released"
+)
+
 type ShowFromShikimori struct {
 	PremiereDate           time.Time
 	StoppedAiringAt        time.Time
 	AgeRating              AgeRating
+	AiringStatus           AiringStatus
 	Studios                []string
 	Screenshots            []Screenshot
 	StaffMembers           []StaffMember
