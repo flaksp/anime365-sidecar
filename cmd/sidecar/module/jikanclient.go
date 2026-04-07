@@ -20,6 +20,6 @@ var JikanClient = func(config *config.Env, logger *slog.Logger) (*jikanclient.Cl
 		5*time.Second,
 		logger,
 		rate.NewLimiter(rate.Limit(3), 3),
-		rate.NewLimiter(rate.Every(time.Minute/60), 30),
+		rate.NewLimiter(rate.Every(time.Minute/60), 10),
 	), nil
 }
