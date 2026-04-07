@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -299,6 +300,8 @@ func (s *Service) SaveTranslationPaths(
 	return nil
 }
 
+var oneOrMoreLineBreaksRegexp = regexp.MustCompile(`\n+`)
+
 func (s *Service) UpdateShowMetadata(
 	ctx context.Context,
 	showFromAnime365 show.Show,
@@ -340,7 +343,7 @@ func (s *Service) UpdateShowMetadata(
 	}
 
 	if showFromAnime365.Description != "" {
-		showItem.Overview = showFromAnime365.Description
+		showItem.Overview = oneOrMoreLineBreaksRegexp.ReplaceAllString(showFromAnime365.Description, "\n\n")
 	}
 
 	if showFromAnime365.TypeLabel != "" && showFromAnime365.SeasonLabel != "" {
