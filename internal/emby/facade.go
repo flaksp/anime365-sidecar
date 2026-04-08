@@ -666,10 +666,11 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		AnyProviderIdEquals: map[string]string{
 			"anime365seriesid": strconv.FormatInt(int64(showID), 10),
 		},
-		IsPlayed:  new(true),
-		Recursive: new(true),
-		SortBy:    []string{"SortName"},
-		SortOrder: "Descending",
+		IsPlayed:         new(true),
+		Recursive:        new(true),
+		SortBy:           []string{"SortName"},
+		SortOrder:        "Descending",
+		IncludeItemTypes: []string{"Episode"},
 	})
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get emby user items: %w", err)
