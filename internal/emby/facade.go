@@ -25,6 +25,12 @@ import (
 
 var ErrEmbyItemNotFound = errors.New("emby item not found")
 
+const (
+	providerIDFieldAnime365SeriesID      = "anime365seriesid"
+	providerIDFieldAnime365EpisodeID     = "anime365episodeid"
+	providerIDFieldAnime365TranslationID = "anime365translationid"
+)
+
 func NewService(
 	downloadsDirectory string,
 	embyUserID string,
@@ -378,7 +384,7 @@ func (s *Service) UpdateShowMetadata(
 	showItem.DisplayOrder = "absolute"
 
 	showItem.ProviderIds = &map[string]string{
-		"anime365seriesid": strconv.FormatInt(int64(showFromAnime365.Anime365ID), 10),
+		providerIDFieldAnime365SeriesID: strconv.FormatInt(int64(showFromAnime365.Anime365ID), 10),
 	}
 
 	showItem.People = make([]embyclient.BaseItemPerson, 0, len(showFromShikimori.StaffMembers))
@@ -571,9 +577,9 @@ func (s *Service) UpdateTranslationMetadata(
 	}
 
 	translationItem.ProviderIds = &map[string]string{
-		"anime365seriesid":      strconv.FormatInt(int64(showID), 10),
-		"anime365episodeid":     strconv.FormatInt(int64(episodeEntity.Anime365ID), 10),
-		"anime365translationid": strconv.FormatInt(int64(translationEntity.Anime365ID), 10),
+		providerIDFieldAnime365SeriesID:      strconv.FormatInt(int64(showID), 10),
+		providerIDFieldAnime365EpisodeID:     strconv.FormatInt(int64(episodeEntity.Anime365ID), 10),
+		providerIDFieldAnime365TranslationID: strconv.FormatInt(int64(translationEntity.Anime365ID), 10),
 	}
 
 	err = s.embyClient.UpdateItem(ctx, translationItem.Id, translationItem)
@@ -664,7 +670,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		ParentID: s.embyLibraryItemID,
 		Limit:    1,
 		AnyProviderIdEquals: map[string]string{
-			"anime365seriesid": strconv.FormatInt(int64(showID), 10),
+			providerIDFieldAnime365SeriesID: strconv.FormatInt(int64(showID), 10),
 		},
 		IsPlayed:         new(true),
 		Recursive:        new(true),
@@ -686,7 +692,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		return 0, 0, errors.New("emby item does not have ProviderIds field")
 	}
 
-	translationIDStr, ok := (*item.ProviderIds)["anime365translationid"]
+	translationIDStr, ok := (*item.ProviderIds)[providerIDFieldAnime365TranslationID]
 	if !ok {
 		return 0, 0, errors.New("emby item does not have ProviderIds.anime365translationid field")
 	}
