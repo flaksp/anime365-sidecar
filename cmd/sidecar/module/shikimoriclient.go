@@ -17,7 +17,7 @@ var ShikimoriClient = func(config *config.Env, logger *slog.Logger) (*shikimoric
 		&http.Client{
 			Transport: httproundtripperwithlogger.New(http.DefaultTransport, logger),
 		},
-		5*time.Second,
+		10*time.Second,
 		logger,
 		rate.NewLimiter(rate.Limit(4), 4), //  Actual limit is 5 RPS, but we are limiting to 4 RPS + burst of 4
 		rate.NewLimiter(
