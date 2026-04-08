@@ -2,10 +2,9 @@ package show
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
-	"time"
 
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
@@ -47,14 +46,20 @@ func (s *Service) GetShow(ctx context.Context, showID Anime365SeriesID) (Show, e
 	return showEntity, nil
 }
 
-func (s *Service) GetSomeShowsFromShikimori(
+func (s *Service) GetShowFromShikimori(
 	ctx context.Context,
-	idsMap map[MyAnimeListID]Anime365SeriesID,
-) (map[Anime365SeriesID]ShowFromShikimori, error) {
-	return s.GetShowsFromShikimori(ctx, randomShowsSubset(
-		idsMap,
-		shikimoriclient.QueryAnimesMaxLimit,
-	))
+	id MyAnimeListID,
+) (ShowFromShikimori, error) {
+	shows, err := s.GetShowsFromShikimori(ctx, map[MyAnimeListID]Anime365SeriesID{id: 0})
+	if err != nil {
+		return ShowFromShikimori{}, err
+	}
+
+	if len(shows) == 0 {
+		return ShowFromShikimori{}, errors.New("no shikimori shows found")
+	}
+
+	return shows[0], nil
 }
 
 func (s *Service) GetShowsFromShikimori(
@@ -97,33 +102,4 @@ func (s *Service) GetShowsFromShikimori(
 	}
 
 	return res, nil
-}
-
-func randomShowsSubset(
-	input map[MyAnimeListID]Anime365SeriesID,
-	count int,
-) map[MyAnimeListID]Anime365SeriesID {
-	if count >= len(input) {
-		return input
-	}
-
-	// collect keys
-	keys := make([]MyAnimeListID, 0, len(input))
-	for k := range input {
-		keys = append(keys, k)
-	}
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(keys), func(i, j int) {
-		keys[i], keys[j] = keys[j], keys[i]
-	})
-
-	// build result map
-	result := make(map[MyAnimeListID]Anime365SeriesID, count)
-	for i := range count {
-		k := keys[i]
-		result[k] = input[k]
-	}
-
-	return result
 }

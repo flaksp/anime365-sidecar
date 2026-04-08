@@ -46,35 +46,45 @@ type Service struct {
 }
 
 func (s *Service) RunOnce(ctx context.Context) error {
-	myAnimeListIDToShowIDMap := s.embyService.GetMyAnimeListIDToShowIDMap()
-
-	showsFromShikimori, err := s.showService.GetSomeShowsFromShikimori(ctx, myAnimeListIDToShowIDMap)
-	if err != nil {
-		return fmt.Errorf("getting shows from shikimori: %w", err)
-	}
-
 	for showID, items := range s.embyService.GetIDs() {
 		showEntity, err := s.showService.GetShow(ctx, showID)
 		if err != nil {
-			s.logger.ErrorContext(ctx, "Failed to get show", slog.String("error", err.Error()))
+			s.logger.ErrorContext(ctx, "Failed to get show, it was not updated",
+				slog.Int64("show_id", int64(showID)),
+				slog.String("error", err.Error()),
+			)
 
 			continue
+		}
+
+		showFromShikimori, err := s.showService.GetShowFromShikimori(ctx, showEntity.MyAnimeListID)
+		if err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to get show from Shikimori, show will be updated without this metadata",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
+				slog.String("error", err.Error()),
+			)
 		}
 
 		err = s.downloadPosterIfNotExists(ctx, showEntity)
 		if err != nil {
-			s.logger.ErrorContext(ctx, "Failed to download poster", slog.String("error", err.Error()))
-
-			continue
+			s.logger.WarnContext(ctx, "Failed to download poster",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
 		}
 
-		if showsFromShikimori[showID].Screenshots != nil {
-			for _, screenshot := range showsFromShikimori[showID].Screenshots {
+		if showFromShikimori.Screenshots != nil {
+			for _, screenshot := range showFromShikimori.Screenshots {
 				err := s.downloadBackdropIfNotExists(ctx, showID, screenshot.ImageURL, screenshot.ID)
 				if err != nil {
-					s.logger.ErrorContext(
+					s.logger.WarnContext(
 						ctx,
 						"Failed to download screenshot as backdrop",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
 						slog.String("error", err.Error()),
 					)
 				}
@@ -84,20 +94,23 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		err = s.embyService.UpdateShowMetadata(
 			ctx,
 			showEntity,
-			showsFromShikimori[showID],
+			showFromShikimori,
 		)
 		if err != nil {
 			if errors.Is(err, emby.ErrEmbyItemNotFound) {
 				s.logger.DebugContext(
 					ctx,
-					"Show not found in Emby items, probably will be indexed later",
+					"Show not found in Emby items, probably will be indexed later, it was not updated",
 					slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				)
 
 				continue
 			}
 
-			s.logger.ErrorContext(ctx, "Failed to update show", slog.String("error", err.Error()))
+			s.logger.ErrorContext(ctx, "Failed to update show in Emby, it was not updated",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
 
 			continue
 		}
@@ -105,7 +118,11 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		for episodeID, items := range items {
 			episodeEntity, err := s.episodeService.GetEpisode(ctx, episodeID)
 			if err != nil {
-				s.logger.ErrorContext(ctx, "Failed to get episode", slog.String("error", err.Error()))
+				s.logger.ErrorContext(ctx, "Failed to get episode, it will not be updated",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.Int64("episode_id", int64(episodeID)),
+					slog.String("error", err.Error()),
+				)
 
 				continue
 			}
@@ -118,38 +135,37 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					int64(showEntity.MyAnimeListID),
 					episodeEntity.EpisodeNumber,
 				)
-				if err != nil {
-					if errors.Is(err, episode.ErrJikanEpisodeNotFound) {
-						s.logger.DebugContext(
-							ctx,
-							"Episode not found on Jikan, skipping it",
-							slog.Int64("show_id", int64(showEntity.Anime365ID)),
-							slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
-							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-							slog.Int64("episode_number", episodeEntity.EpisodeNumber),
-						)
-
-						continue
-					}
-
-					s.logger.ErrorContext(
+				if errors.Is(err, episode.ErrJikanEpisodeNotFound) {
+					s.logger.DebugContext(
 						ctx,
-						"Failed to get episode metadata from Jikan",
+						"Episode not found on Jikan, episode will be updated without this metadata",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("episode_number", episodeEntity.EpisodeNumber),
+					)
+				} else if err != nil {
+					s.logger.WarnContext(
+						ctx,
+						"Failed to get episode metadata from Jikan, episode will be updated without this metadata",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 						slog.Int64("episode_number", episodeEntity.EpisodeNumber),
 						slog.String("error", err.Error()),
 					)
-
-					continue
 				}
 			}
 
 			for translationID := range items {
 				translationEntity, err := s.episodeService.GetTranslation(ctx, translationID)
 				if err != nil {
-					s.logger.ErrorContext(ctx, "Failed to get translation", slog.String("error", err.Error()))
+					s.logger.ErrorContext(ctx, "Failed to get translation, it will not be updated",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("translation_id", int64(translationID)),
+						slog.String("error", err.Error()),
+					)
 
 					continue
 				}
@@ -161,20 +177,27 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					translationEntity,
 					episodeMetadataFromJikan,
 				)
-				if err != nil {
-					if errors.Is(err, emby.ErrEmbyItemNotFound) {
-						s.logger.DebugContext(
-							ctx,
-							"Translation not found in Emby items, probably will be indexed later",
-							slog.Int64("show_id", int64(showEntity.Anime365ID)),
-							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-							slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
-						)
+				if errors.Is(err, emby.ErrEmbyItemNotFound) {
+					s.logger.DebugContext(
+						ctx,
+						"Translation not found in Emby items, probably will be indexed later, it was not updated",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+					)
 
-						continue
-					}
+					continue
+				} else if err != nil {
+					s.logger.ErrorContext(
+						ctx,
+						"Failed to update translation in Emby, it was not updated",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+						slog.String("error", err.Error()),
+					)
 
-					s.logger.ErrorContext(ctx, "Failed to update translation", slog.String("error", err.Error()))
+					continue
 				}
 			}
 		}
