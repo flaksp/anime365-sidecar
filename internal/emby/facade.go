@@ -453,6 +453,8 @@ func (s *Service) UpdateShowMetadata(
 		showItem.OfficialRating = "X"
 	}
 
+	showItem.LockData = true
+
 	showItem.LockedFields = []embyclient.MetadataFields{
 		embyclient.NAME_MetadataFields,
 		embyclient.ORIGINAL_TITLE_MetadataFields,
@@ -567,6 +569,8 @@ func (s *Service) UpdateTranslationMetadata(
 	}
 
 	translationItem.Tags = tags
+
+	translationItem.LockData = true
 
 	translationItem.LockedFields = []embyclient.MetadataFields{
 		embyclient.NAME_MetadataFields,
