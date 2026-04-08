@@ -73,9 +73,6 @@ func (c *Client) GetAnimeEpisodeByID(
 }
 
 func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryParams url.Values, response any) error {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
 	if c.rateLimiterPerMinute != nil {
 		if err := c.rateLimiterPerMinute.Wait(ctx); err != nil {
 			return fmt.Errorf("per-minute rate limit: %w", err)
@@ -88,10 +85,13 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 		}
 	}
 
+	httpRequestCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
 	requestURL := c.BaseURL.JoinPath(endpoint)
 	requestURL.RawQuery = queryParams.Encode()
 
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
+	httpRequest, err := http.NewRequestWithContext(httpRequestCtx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return fmt.Errorf("creating http request with context: %w", err)
 	}
@@ -105,7 +105,7 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 		err := Body.Close()
 		if err != nil {
 			c.logger.WarnContext(
-				ctx,
+				httpRequestCtx,
 				"Jikan API response body closed unexpectedly",
 				slog.String("error", err.Error()),
 			)
@@ -119,7 +119,7 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 
 	if httpResponse.StatusCode >= 400 {
 		c.logger.WarnContext(
-			ctx,
+			httpRequestCtx,
 			"Unexpected response from Jikan API",
 			slog.String("method", httpRequest.Method),
 			slog.String("url", httpRequest.URL.String()),
