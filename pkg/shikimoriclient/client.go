@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 func New(
@@ -20,20 +22,26 @@ func New(
 	httpClient *http.Client,
 	timeout time.Duration,
 	logger *slog.Logger,
+	rateLimiterPerSecond *rate.Limiter,
+	rateLimiterPerMinute *rate.Limiter,
 ) *Client {
 	return &Client{
-		BaseURL:    baseURL,
-		httpClient: httpClient,
-		timeout:    timeout,
-		logger:     logger,
+		BaseURL:              baseURL,
+		httpClient:           httpClient,
+		timeout:              timeout,
+		logger:               logger,
+		rateLimiterPerSecond: rateLimiterPerSecond,
+		rateLimiterPerMinute: rateLimiterPerMinute,
 	}
 }
 
 type Client struct {
-	BaseURL    *url.URL
-	httpClient *http.Client
-	logger     *slog.Logger
-	timeout    time.Duration
+	BaseURL              *url.URL
+	httpClient           *http.Client
+	logger               *slog.Logger
+	rateLimiterPerSecond *rate.Limiter
+	rateLimiterPerMinute *rate.Limiter
+	timeout              time.Duration
 }
 
 const QueryAnimesMaxLimit = 50
@@ -82,6 +90,18 @@ func (c *Client) sendRequestToGraphQL(
 	request graphQLRequest,
 	response any,
 ) error {
+	if c.rateLimiterPerMinute != nil {
+		if err := c.rateLimiterPerMinute.Wait(ctx); err != nil {
+			return fmt.Errorf("per-minute rate limit: %w", err)
+		}
+	}
+
+	if c.rateLimiterPerSecond != nil {
+		if err := c.rateLimiterPerSecond.Wait(ctx); err != nil {
+			return fmt.Errorf("per-second rate limit: %w", err)
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
