@@ -17,7 +17,7 @@ var JikanClient = func(config *config.Env, logger *slog.Logger) (*jikanclient.Cl
 		&http.Client{
 			Transport: httproundtripperwithlogger.New(http.DefaultTransport, logger),
 		},
-		5*time.Second,
+		10*time.Second,
 		logger,
 		rate.NewLimiter(rate.Limit(2), 2), //  Actual limit is 3 RPS, but we are limiting to 2 RPS + burst of 2
 		rate.NewLimiter(
