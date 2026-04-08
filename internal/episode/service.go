@@ -90,6 +90,13 @@ func (s *Service) GetEpisodeMetadataFromJikan(
 ) (MetadataFromJikan, error) {
 	episodeDTO, err := s.jikanClient.GetAnimeEpisodeByID(ctx, myAnimeListShowID, episodeNumber)
 	if err != nil {
+		if apiError, ok := errors.AsType[*jikanclient.APIError](
+			err,
+		); ok &&
+			apiError.Status == jikanclient.ErrorCodeNotFound {
+			return MetadataFromJikan{}, ErrJikanEpisodeNotFound
+		}
+
 		return MetadataFromJikan{}, fmt.Errorf("getting episode from jikan: %w", err)
 	}
 

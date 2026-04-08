@@ -128,6 +128,11 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 		)
 	}
 
+	var apiError APIError
+	if err := json.Unmarshal(responseBodyBytes, &apiError); err == nil && apiError.Status != 0 {
+		return &apiError
+	}
+
 	var wrappedResponse struct {
 		Data json.RawMessage `json:"data"`
 	}
