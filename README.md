@@ -33,6 +33,10 @@ services:
     ports:
       - "8096:8096"
       - "8920:8920"
+    environment:
+      UID: "1000"
+      GID: "1000"
+      GIDLIST: "1000"
 
   sidecar:
     image: ghcr.io/flaksp/anime365-sidecar:latest
@@ -41,6 +45,7 @@ services:
     pull-policy: weekly
     volumes:
       - ./emby/media/anime365:/mnt/anime365
+    user: "1000:1000"
     environment:
       SIDECAR_ANIME365_BASE_URL: https://smotret-anime.app
       SIDECAR_ANIME365_LOGIN: user@example.com
@@ -180,16 +185,6 @@ Shikimori - это русскоязычный аналог MyAnimeList. Сайд
 Первая загрузка всей библиотеки, в зависимости от ваших настроек сайдкара и размера ваших списков, может занять какое-то время.
 
 ## Вопросы и проблемы
-
-### Серии не качаются, в логах ошибки "Failed to download ... permission denied"
-
-У сайдкара не достаточно прав для изменения файлов в директории, куда он эти файлы пытается сохранить. Попробуйте выполнить команду:
-
-```bash
-chmod -R 777 ./emby/media/anime365
-```
-
-Где `./emby/media/anime365` - путь до вашей директории с медиа.
 
 ### Планируется ли поддержка Plex?
 
