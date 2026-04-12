@@ -67,8 +67,9 @@ type TranslationVariant struct {
 }
 
 type Translation struct {
-	Variant          TranslationVariant
 	MarkedAsActiveAt time.Time
+	Anime365URL      *url.URL
+	Variant          TranslationVariant
 	Authors          []string
 	Anime365ID       Anime365TranslationID
 	Anime365Priority int
@@ -91,6 +92,13 @@ func NewTranslation(translationDTO anime365client.Translation) (Translation, err
 	default:
 		return Translation{}, ErrNormalizingEpisodeEntity
 	}
+
+	anime365URL, err := url.Parse(translationDTO.URL)
+	if err != nil {
+		return Translation{}, fmt.Errorf("failed to parse translation anime 365 url: %w", err)
+	}
+
+	translationEntity.Anime365URL = anime365URL
 
 	translationLanguage, err := language.Parse(translationDTO.TypeLang)
 	if err != nil {

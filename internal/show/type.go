@@ -21,6 +21,7 @@ type ExternalNamedLink struct {
 }
 
 type Show struct {
+	Anime365URL      *url.URL
 	PosterURL        *url.URL
 	TitleRomaji      string
 	TitleRussian     string
@@ -28,8 +29,8 @@ type Show struct {
 	TypeLabel        string
 	SeasonLabel      string
 	Links            []ExternalNamedLink
-	Genres           []string
 	EpisodePreviews  []EpisodePreview
+	Genres           []string
 	Anime365ID       Anime365SeriesID
 	MyAnimeListID    MyAnimeListID
 	MyAnimeListScore float64
@@ -57,6 +58,13 @@ func NewShow(series anime365client.Series) (Show, error) {
 		SeasonLabel:   series.Season,
 		TypeLabel:     series.TypeTitle,
 	}
+
+	anime365URL, err := url.Parse(series.URL)
+	if err != nil {
+		return Show{}, fmt.Errorf("failed to parse series anime 365 url: %w", err)
+	}
+
+	showEntity.Anime365URL = anime365URL
 
 	if myAnimeListScore, err := strconv.ParseFloat(series.MyAnimeListScore, 64); err == nil && myAnimeListScore > 0 {
 		showEntity.MyAnimeListScore = myAnimeListScore

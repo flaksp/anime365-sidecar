@@ -9,11 +9,8 @@ type Series struct {
 	PosterURL        string `json:"posterUrl"`
 	Season           string `json:"season"`
 	TypeTitle        string `json:"typeTitle"`
-	Links            []struct {
-		Title string `json:"title"`
-		URL   string `json:"url"`
-	}
-	Genres []struct {
+	URL              string `json:"url"`
+	Genres           []struct {
 		Title string `json:"title"`
 	} `json:"genres"`
 	Descriptions []struct {
@@ -25,6 +22,10 @@ type Series struct {
 		EpisodeType string `json:"episodeType"`
 		ID          int64  `json:"id"`
 	} `json:"episodes"`
+	Links []struct {
+		Title string `json:"title"`
+		URL   string `json:"url"`
+	}
 	ID            int64 `json:"id"`
 	Year          int   `json:"year"`
 	IsAiring      int   `json:"isAiring"`
@@ -51,6 +52,7 @@ type Translation struct {
 	TypeKind       string   `json:"typeKind"`
 	TypeLang       string   `json:"typeLang"`
 	ActiveDateTime string   `json:"activeDateTime"`
+	URL            string   `json:"url"`
 	AuthorsList    []string `json:"authorsList"`
 	ID             int64    `json:"id"`
 	IsActive       int      `json:"isActive"`
