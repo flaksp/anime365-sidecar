@@ -26,7 +26,7 @@ services:
     image: emby/embyserver:latest
     container_name: emby
     restart: unless-stopped
-    pull-policy: weekly
+    pull_policy: weekly
     volumes:
       - ./emby/config:/config
       - ./emby/media/anime365:/mnt/anime365
@@ -42,7 +42,7 @@ services:
     image: ghcr.io/flaksp/anime365-sidecar:latest
     container_name: sidecar
     restart: unless-stopped
-    pull-policy: weekly
+    pull_policy: weekly
     volumes:
       - ./emby/media/anime365:/mnt/anime365
     user: "1000:1000"
