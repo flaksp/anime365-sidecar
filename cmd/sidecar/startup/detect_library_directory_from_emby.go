@@ -10,5 +10,5 @@ import (
 var DetectLibraryDirectoryFromEmby = func(config *config.Env, embyService *emby.Service) error {
 	ctx := context.Background()
 
-	return embyService.DetectLibraryDirectoryFromEmby(ctx, config.EmbyLibraryName)
+	return embyService.DetectLibraryDirectoryFromEmby(ctx, config.EmbyLibraryID)
 }
