@@ -60,14 +60,14 @@ func (s *Service) LoadManifestFromDisk(ctx context.Context) error {
 	return s.manifestService.LoadFromDisk(ctx)
 }
 
-func (s *Service) DetectLibraryDirectoryFromEmby(ctx context.Context, libraryID int64) error {
+func (s *Service) DetectLibraryDirectoryFromEmby(ctx context.Context, libraryID string) error {
 	virtualFolderDTOs, err := s.embyClient.GetLibraryVirtualFolders(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, virtualFolderDTO := range virtualFolderDTOs {
-		if virtualFolderDTO.ItemId != strconv.FormatInt(libraryID, 10) {
+		if virtualFolderDTO.ItemId != libraryID {
 			continue
 		}
 
@@ -89,7 +89,7 @@ func (s *Service) DetectLibraryDirectoryFromEmby(ctx context.Context, libraryID 
 		return nil
 	}
 
-	return fmt.Errorf("failed to detect library metadata, library with id \"%d\" does not exist", libraryID)
+	return fmt.Errorf("failed to detect library metadata, library with id \"%s\" does not exist", libraryID)
 }
 
 func (s *Service) CreateShowIfNotExists(

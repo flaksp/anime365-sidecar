@@ -19,7 +19,7 @@ type Env struct {
 	Anime365Login               string        `env:"SIDECAR_ANIME365_LOGIN,required,notEmpty"`
 	ScanSources                 []string      `env:"SIDECAR_SCAN_SOURCES,required,notEmpty"                   envDefault:"list_watching"`
 	Translations                []string      `env:"SIDECAR_TRANSLATIONS,required,notEmpty"                   envDefault:"ru_subtitles,ru_dub"`
-	EmbyLibraryID               int64         `env:"SIDECAR_EMBY_LIBRARY_ID,required,notEmpty"`
+	EmbyLibraryID               string        `env:"SIDECAR_EMBY_LIBRARY_ID,required,notEmpty"`
 	DownloadTimeoutVideo        time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_VIDEO,required,notEmpty"         envDefault:"1h"`
 	ScanIdleInterval            time.Duration `env:"SIDECAR_SCAN_IDLE_INTERVAL,required,notEmpty"             envDefault:"5m"`
 	MetadataRefreshIdleInterval time.Duration `env:"SIDECAR_METADATA_REFRESH_IDLE_INTERVAL,required,notEmpty" envDefault:"1h"`
