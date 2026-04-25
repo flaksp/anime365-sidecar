@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -19,6 +20,7 @@ type showManifestEntry struct {
 	Screenshots   map[string]bool                 `json:"screenshots"`
 	Episodes      map[string]episodeManifestEntry `json:"episodes"`
 	DirectoryName string                          `json:"directory_name"`
+	EmbyItemID    string                          `json:"emby_item_id,omitempty"`
 	MyAnimeListID int64                           `json:"my_anime_list_id,omitempty"`
 }
 
@@ -29,6 +31,7 @@ type episodeManifestEntry struct {
 type translationManifestEntry struct {
 	VideoFileRelativePath     string `json:"video_file_relative_path"`
 	SubtitlesFileRelativePath string `json:"subtitles_file_relative_path,omitempty"`
+	EmbyItemID                string `json:"emby_item_id,omitempty"`
 	Height                    int64  `json:"height"`
 }
 
@@ -429,6 +432,170 @@ func (s *Service) AddBackdrop(
 	}
 
 	return nil
+}
+
+func (s *Service) GetShowIDByDirectoryName(directoryName string) (show.Anime365SeriesID, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for showIDStr, showEntry := range s.inMemoryManifest.Shows {
+		if showEntry.DirectoryName == directoryName {
+			showIDInt, err := strconv.Atoi(showIDStr)
+			if err != nil {
+				continue
+			}
+
+			return show.Anime365SeriesID(showIDInt), true
+		}
+	}
+
+	return 0, false
+}
+
+func (s *Service) GetIDsByVideoFileRelativePath(
+	videoFileRelativePath string,
+) (show.Anime365SeriesID, episode.Anime365EpisodeID, episode.Anime365TranslationID, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	videoFileRelativePathParts := strings.SplitN(videoFileRelativePath, string(os.PathSeparator), 2)
+
+	if len(videoFileRelativePathParts) == 0 {
+		return 0, 0, 0, false
+	}
+
+	showDirectoryName := videoFileRelativePathParts[0]
+
+	showID, exists := s.GetShowIDByDirectoryName(showDirectoryName)
+	if !exists {
+		return 0, 0, 0, false
+	}
+
+	showEntry := s.inMemoryManifest.Shows[strconv.FormatInt(int64(showID), 10)]
+
+	for episodeIDStr, episodeEntry := range showEntry.Episodes {
+		episodeIDInt, err := strconv.Atoi(episodeIDStr)
+		if err != nil {
+			continue
+		}
+
+		episodeID := episode.Anime365EpisodeID(episodeIDInt)
+
+		for translationIDStr, translationEntry := range episodeEntry.Translations {
+			if translationEntry.VideoFileRelativePath == videoFileRelativePath {
+				translationIDInt, err := strconv.Atoi(translationIDStr)
+				if err != nil {
+					continue
+				}
+
+				return showID, episodeID, episode.Anime365TranslationID(translationIDInt), true
+			}
+		}
+	}
+
+	return 0, 0, 0, false
+}
+
+func (s *Service) SetShowEmbyItemID(
+	showID show.Anime365SeriesID,
+	embyItemID string,
+) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	showIDStr := strconv.FormatInt(int64(showID), 10)
+
+	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
+	if !exists {
+		return fmt.Errorf("no show found with show ID %d", showID)
+	}
+
+	showEntry.EmbyItemID = embyItemID
+
+	s.inMemoryManifest.Shows[showIDStr] = showEntry
+
+	if err := s.saveToDisk(); err != nil {
+		return fmt.Errorf("failed to save manifest: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) SetTranslationEmbyItemID(
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+	translationID episode.Anime365TranslationID,
+	embyItemID string,
+) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	showIDStr := strconv.FormatInt(int64(showID), 10)
+	episodeIDStr := strconv.FormatInt(int64(episodeID), 10)
+	translationIDStr := strconv.FormatInt(int64(translationID), 10)
+
+	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
+	if !exists {
+		return fmt.Errorf("no show found with show ID %d", showID)
+	}
+
+	episodeEntry, exists := showEntry.Episodes[episodeIDStr]
+	if !exists {
+		return fmt.Errorf("no episode found with episode ID %d", episodeID)
+	}
+
+	translationEntry, exists := episodeEntry.Translations[translationIDStr]
+	if !exists {
+		return fmt.Errorf("no translation found with translation ID %d", translationID)
+	}
+
+	translationEntry.EmbyItemID = embyItemID
+
+	episodeEntry.Translations[translationIDStr] = translationEntry
+
+	showEntry.Episodes[episodeIDStr] = episodeEntry
+
+	s.inMemoryManifest.Shows[showIDStr] = showEntry
+
+	if err := s.saveToDisk(); err != nil {
+		return fmt.Errorf("failed to save manifest: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) GetTranslationEmbyItemID(
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+	translationID episode.Anime365TranslationID,
+) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	showIDStr := strconv.FormatInt(int64(showID), 10)
+	episodeIDStr := strconv.FormatInt(int64(episodeID), 10)
+	translationIDStr := strconv.FormatInt(int64(translationID), 10)
+
+	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
+	if !exists {
+		return "", false
+	}
+
+	episodeEntry, exists := showEntry.Episodes[episodeIDStr]
+	if !exists {
+		return "", false
+	}
+
+	translationEntry, exists := episodeEntry.Translations[translationIDStr]
+	if !exists {
+		return "", false
+	}
+
+	if translationEntry.EmbyItemID == "" {
+		return "", false
+	}
+
+	return translationEntry.EmbyItemID, true
 }
 
 func (s *Service) saveToDisk() error {

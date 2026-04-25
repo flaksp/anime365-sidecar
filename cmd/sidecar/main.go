@@ -47,7 +47,8 @@ func main() {
 		fx.Invoke(startup.LoadListFromAnime365),
 		fx.Invoke(worker.AnimeListSyncronizer),
 		fx.Invoke(worker.ShowDownloader),
-		fx.Invoke(worker.LibraryMetadataRefresher),
+		fx.Invoke(worker.ItemsWithoutMetadataMetadataRefresher),
+		fx.Invoke(worker.ItemsWithMetadataMetadataRefresher),
 		fx.Invoke(worker.WatchedNotifier),
 	).Run()
 }

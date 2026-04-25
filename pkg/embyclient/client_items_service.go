@@ -11,8 +11,11 @@ import (
 type GetItemsOptionalParams struct {
 	Recursive           *bool
 	AnyProviderIdEquals map[string]string
+	IsLocked            *bool
+	IsFolder            *bool
 	ParentID            string
 	Path                string
+	Ids                 []string
 	Filters             []string
 	IncludeItemTypes    []string
 	Limit               int
@@ -25,20 +28,30 @@ func (c *Client) GetItems(
 	fields := []string{
 		"Budget",
 		"Chapters",
+		"CommunityRating",
 		"DateCreated",
+		"EndDate",
 		"Genres",
 		"HomePageUrl",
 		"IndexOptions",
+		"LockedFields",
 		"MediaStreams",
+		"OfficialRating",
+		"OriginalTitle",
 		"Overview",
 		"ParentId",
 		"Path",
 		"People",
-		"ProviderIds",
+		"People",
+		"PremiereDate",
 		"PrimaryImageAspectRatio",
+		"ProductionYear",
+		"ProviderIds",
 		"Revenue",
 		"SortName",
+		"Status",
 		"Studios",
+		"TagItems", // this field is not returned for some reason
 		"Taglines",
 	}
 
@@ -48,6 +61,10 @@ func (c *Client) GetItems(
 
 	if optionalParams.Filters != nil {
 		queryParams.Add("Filters", strings.Join(optionalParams.Filters, ","))
+	}
+
+	if optionalParams.Ids != nil {
+		queryParams.Add("Ids", strings.Join(optionalParams.Ids, ","))
 	}
 
 	if optionalParams.ParentID != "" {
@@ -80,6 +97,14 @@ func (c *Client) GetItems(
 		queryParams.Add("Recursive", strconv.FormatBool(*optionalParams.Recursive))
 	}
 
+	if optionalParams.IsLocked != nil {
+		queryParams.Add("IsLocked", strconv.FormatBool(*optionalParams.IsLocked))
+	}
+
+	if optionalParams.IsFolder != nil {
+		queryParams.Add("IsFolder", strconv.FormatBool(*optionalParams.IsFolder))
+	}
+
 	var response QueryResultBaseItemDto
 
 	err := c.sendGETRequestToAPI(ctx, "/Items", queryParams, &response)
@@ -106,8 +131,33 @@ func (c *Client) GetUserItems(
 	optionalParams *GetUserItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
 	fields := []string{
+		"Budget",
+		"Chapters",
+		"CommunityRating",
+		"DateCreated",
+		"EndDate",
+		"Genres",
+		"HomePageUrl",
+		"IndexOptions",
+		"LockedFields",
+		"MediaStreams",
+		"OfficialRating",
+		"OriginalTitle",
+		"Overview",
+		"ParentId",
+		"Path",
+		"People",
+		"People",
+		"PremiereDate",
+		"PrimaryImageAspectRatio",
+		"ProductionYear",
 		"ProviderIds",
-		"UserData",
+		"Revenue",
+		"SortName",
+		"Status",
+		"Studios",
+		"TagItems", // this field is not returned for some reason
+		"Taglines",
 	}
 
 	queryParams := url.Values{

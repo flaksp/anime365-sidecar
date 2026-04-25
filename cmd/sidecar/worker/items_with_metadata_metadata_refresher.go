@@ -10,17 +10,17 @@ import (
 	"go.uber.org/fx"
 )
 
-var LibraryMetadataRefresher = func(
+var ItemsWithMetadataMetadataRefresher = func(
 	lc fx.Lifecycle,
 	config *config.Env,
 	logger *slog.Logger,
 	libraryMetadataRefresher *librarymetadatarefresher.Service,
 ) error {
 	worker := backgroundworker.New(
-		"library-metadata-refresher",
+		"items-with-metadata-metadata-refresher",
 		config.MetadataRefreshIdleInterval,
 		func(ctx context.Context) error {
-			return libraryMetadataRefresher.RunOnce(ctx)
+			return libraryMetadataRefresher.RunOnceForItemsWithMetadata(ctx)
 		},
 		logger,
 	)

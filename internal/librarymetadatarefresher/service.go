@@ -45,8 +45,13 @@ type Service struct {
 	downloadImageTimeout time.Duration
 }
 
-func (s *Service) RunOnce(ctx context.Context) error {
-	for showID, items := range s.embyService.GetIDs() {
+func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
+	ids, err := s.embyService.GetIDsWithoutMetadataFromEmbyLibrary(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get item ids without metadata from emby library: %w", err)
+	}
+
+	for showID, items := range ids {
 		showEntity, err := s.showService.GetShow(ctx, showID)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "Failed to get show, it was not updated",
@@ -57,6 +62,98 @@ func (s *Service) RunOnce(ctx context.Context) error {
 			continue
 		}
 
+		if err = s.embyService.InitialUpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to perform initial update show in Emby with Anime 365 metadata, this metadata was not updated",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
+		err = s.downloadPosterIfNotExists(ctx, showEntity)
+		if err != nil {
+			s.logger.WarnContext(ctx, "Failed to download poster",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
+		for episodeID, items := range items {
+			episodeEntity, err := s.episodeService.GetEpisode(ctx, episodeID)
+			if err != nil {
+				s.logger.ErrorContext(ctx, "Failed to get episode, it will not be updated",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.Int64("episode_id", int64(episodeID)),
+					slog.String("error", err.Error()),
+				)
+
+				continue
+			}
+
+			for translationID := range items {
+				translationEntity, err := s.episodeService.GetTranslation(ctx, translationID)
+				if err != nil {
+					s.logger.ErrorContext(ctx, "Failed to get translation, it will not be updated",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("translation_id", int64(translationID)),
+						slog.String("error", err.Error()),
+					)
+
+					continue
+				}
+
+				if err = s.embyService.InitialUpdateTranslationMetadataWithAnime365Metadata(
+					ctx,
+					showID,
+					episodeEntity,
+					translationEntity,
+				); err != nil {
+					s.logger.ErrorContext(
+						ctx,
+						"Failed to perform initial update translation in Emby with Anime 365 metadata, it was not updated",
+						slog.Int64("show_id", int64(showEntity.Anime365ID)),
+						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+						slog.String("error", err.Error()),
+					)
+
+					continue
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
+	ids, err := s.embyService.GetIDsWithMetadataFromEmbyLibrary(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get item ids with metadata from emby library: %w", err)
+	}
+
+	for showID, items := range ids {
+		showEntity, err := s.showService.GetShow(ctx, showID)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "Failed to get show, it was not updated",
+				slog.Int64("show_id", int64(showID)),
+				slog.String("error", err.Error()),
+			)
+
+			continue
+		}
+
+		if err = s.embyService.UpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to update show in Emby with Anime 365 metadata, this metadata was not updated",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
 		showFromShikimori, err := s.showService.GetShowFromShikimori(ctx, showEntity.MyAnimeListID)
 		if err != nil {
 			s.logger.WarnContext(
@@ -64,6 +161,15 @@ func (s *Service) RunOnce(ctx context.Context) error {
 				"Failed to get show from Shikimori, show will be updated without this metadata",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
+		if err = s.embyService.UpdateShowMetadataWithShikimoriMetadata(ctx, showID, showFromShikimori); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to update show in Emby with Shikimori metadata, this metadata was not updated",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
 		}
@@ -91,30 +197,6 @@ func (s *Service) RunOnce(ctx context.Context) error {
 			}
 		}
 
-		err = s.embyService.UpdateShowMetadata(
-			ctx,
-			showEntity,
-			showFromShikimori,
-		)
-		if err != nil {
-			if errors.Is(err, emby.ErrEmbyItemNotFound) {
-				s.logger.DebugContext(
-					ctx,
-					"Show not found in Emby items, probably will be indexed later, it was not updated",
-					slog.Int64("show_id", int64(showEntity.Anime365ID)),
-				)
-
-				continue
-			}
-
-			s.logger.ErrorContext(ctx, "Failed to update show in Emby, it was not updated",
-				slog.Int64("show_id", int64(showEntity.Anime365ID)),
-				slog.String("error", err.Error()),
-			)
-
-			continue
-		}
-
 		for episodeID, items := range items {
 			episodeEntity, err := s.episodeService.GetEpisode(ctx, episodeID)
 			if err != nil {
@@ -138,7 +220,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 				if errors.Is(err, episode.ErrJikanEpisodeNotFound) {
 					s.logger.DebugContext(
 						ctx,
-						"Episode not found on Jikan, episode will be updated without this metadata",
+						"Episode not found on Jikan, all translations will be updated without this metadata",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
@@ -147,7 +229,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 				} else if err != nil {
 					s.logger.WarnContext(
 						ctx,
-						"Failed to get episode metadata from Jikan, episode will be updated without this metadata",
+						"Failed to get episode metadata from Jikan, all translations will be updated without this metadata",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
@@ -170,27 +252,15 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					continue
 				}
 
-				err = s.embyService.UpdateTranslationMetadata(
+				if err = s.embyService.UpdateTranslationMetadataWithAnime365Metadata(
 					ctx,
 					showID,
 					episodeEntity,
 					translationEntity,
-					episodeMetadataFromJikan,
-				)
-				if errors.Is(err, emby.ErrEmbyItemNotFound) {
-					s.logger.DebugContext(
-						ctx,
-						"Translation not found in Emby items, probably will be indexed later, it was not updated",
-						slog.Int64("show_id", int64(showEntity.Anime365ID)),
-						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
-					)
-
-					continue
-				} else if err != nil {
+				); err != nil {
 					s.logger.ErrorContext(
 						ctx,
-						"Failed to update translation in Emby, it was not updated",
+						"Failed to update translation in Emby with Anime 365 metadata, it was not updated",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
@@ -198,6 +268,27 @@ func (s *Service) RunOnce(ctx context.Context) error {
 					)
 
 					continue
+				}
+
+				if episodeMetadataFromJikan.Title != "" {
+					if err = s.embyService.UpdateTranslationMetadataWithJikanMetadata(
+						ctx,
+						showID,
+						episodeID,
+						translationEntity.Anime365ID,
+						episodeMetadataFromJikan,
+					); err != nil {
+						s.logger.ErrorContext(
+							ctx,
+							"Failed to update translation in Emby with Jikan metadata, it was not updated",
+							slog.Int64("show_id", int64(showEntity.Anime365ID)),
+							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+							slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+							slog.String("error", err.Error()),
+						)
+
+						continue
+					}
 				}
 			}
 		}
