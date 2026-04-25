@@ -600,7 +600,7 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 		})
 	}
 
-	if !areStringSliceAndNameLongIdPairSliceEqual(showFromShikimori.Studios, newStudios) {
+	if !areStringSliceAndNameLongIdPairSliceEqual(showFromShikimori.Studios, showItem.Studios) {
 		showItem.Studios = newStudios
 		needUpdate = true
 	}
@@ -895,18 +895,18 @@ func (s *Service) UpdateTranslationMetadataWithJikanMetadata(
 		needUpdate = true
 	}
 
-	tags := make([]string, 0)
+	newTags := make([]string, 0)
 
 	if episodeMetadataFromJikan.IsFiller {
-		tags = append(tags, "Филлер")
+		newTags = append(newTags, "Филлер")
 	}
 
 	if episodeMetadataFromJikan.IsRecap {
-		tags = append(tags, "Рекап")
+		newTags = append(newTags, "Рекап")
 	}
 
-	if !areStringSliceAndNameLongIdPairSliceEqual(tags, translationItem.TagItems) {
-		translationItem.Tags = tags
+	if !areStringSliceAndNameLongIdPairSliceEqual(newTags, translationItem.TagItems) {
+		translationItem.Tags = newTags
 		needUpdate = true
 	}
 
