@@ -37,6 +37,11 @@ services:
       UID: "1000"
       GID: "1000"
       GIDLIST: "1000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--output-file", "/dev/null", "http://localhost:8096/System/Ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   sidecar:
     image: ghcr.io/flaksp/anime365-sidecar:latest
@@ -55,6 +60,9 @@ services:
       SIDECAR_EMBY_LIBRARY_ID: 3
       SIDECAR_EMBY_USER_ID: 9283b8ae8bee4ccba61174e310ff0ab1
       SIDECAR_LIBRARY_DIRECTORY: /mnt/anime365
+    depends_on:
+      emby:
+        condition: service_healthy
 ```
 
 У сервиса `sidecar` вместо `:latest` можно использовать зафиксированную версию Docker-образа. Актуальную версию можно посмотреть в разделе [Packages](https://github.com/flaksp/anime365-sidecar/pkgs/container/anime365-sidecar).
