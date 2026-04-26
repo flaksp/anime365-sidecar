@@ -323,9 +323,17 @@ func (s *Service) downloadPosterIfNotExists(
 	}
 
 	defer func() {
-		err := posterTmpFile.Close()
-		if err != nil {
+		if err := posterTmpFile.Close(); err != nil {
 			s.logger.WarnContext(ctx, "Closing poster tmp file error", slog.String("error", err.Error()))
+		}
+
+		if err := os.Remove(posterTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to remove poster temp file",
+				slog.String("error", err.Error()),
+				slog.String("file_path", posterTmpFile.Name()),
+			)
 		}
 	}()
 
@@ -376,9 +384,17 @@ func (s *Service) downloadBackdropIfNotExists(
 	}
 
 	defer func() {
-		err := backdropTmpFile.Close()
-		if err != nil {
+		if err := backdropTmpFile.Close(); err != nil {
 			s.logger.WarnContext(ctx, "Closing backdrop tmp file error", slog.String("error", err.Error()))
+		}
+
+		if err := os.Remove(backdropTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to remove backdrop temp file",
+				slog.String("error", err.Error()),
+				slog.String("file_path", backdropTmpFile.Name()),
+			)
 		}
 	}()
 

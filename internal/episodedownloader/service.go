@@ -169,9 +169,17 @@ func (s *Service) downloadTranslation(
 	}
 
 	defer func() {
-		err := videoTmpFile.Close()
-		if err != nil {
+		if err := videoTmpFile.Close(); err != nil {
 			s.logger.WarnContext(ctx, "Closing video tmp file error", slog.String("error", err.Error()))
+		}
+
+		if err := os.Remove(videoTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to remove video temp file",
+				slog.String("error", err.Error()),
+				slog.String("file_path", videoTmpFile.Name()),
+			)
 		}
 	}()
 
