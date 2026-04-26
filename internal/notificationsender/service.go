@@ -3,11 +3,15 @@ package notificationsender
 import (
 	"context"
 	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/flaksp/anime365-sidecar/internal/episode"
-	"github.com/flaksp/anime365-sidecar/internal/show"
+	"github.com/flaksp/anime365-sidecar/pkg/authorslistformatter"
+	"github.com/flaksp/anime365-sidecar/pkg/filesize"
 	"github.com/flaksp/anime365-sidecar/pkg/telegrambotapiclient"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"golang.org/x/text/language/display"
 )
 
 func NewService(telegramBotAPIClient *telegrambotapiclient.Client, telegramRecipient string) *Service {
@@ -24,10 +28,13 @@ type Service struct {
 
 func (s *Service) TranslationDownloaded(
 	ctx context.Context,
-	showEntity show.Show,
-	episodeEntity episode.Episode,
-	translationEntity episode.Translation,
-	translationMediaEntity episode.TranslationMedia,
+	embyWebURL *url.URL,
+	showName string,
+	episodeLabel string,
+	translationVariant episode.TranslationVariant,
+	authorsList []string,
+	videoMetadataDisplayTitle string,
+	fileBitrate int64,
 ) error {
 	if s.telegramBotAPIClient == nil {
 		return nil
@@ -37,13 +44,15 @@ func (s *Service) TranslationDownloaded(
 		ctx,
 		s.telegramRecipient,
 		fmt.Sprintf(
-			"💾 <a href=\"%s\">%s</a>: загружена <b>%s</b> в переводе <a href=\"%s\">%s</a> (%dp)",
-			showEntity.Anime365URL.String(),
-			showEntity.TitleRussian,
-			episodeEntity.EpisodeLabel,
-			translationEntity.Anime365URL.String(),
-			strings.Join(translationEntity.Authors, ", "),
-			translationMediaEntity.Height,
+			"💾 Загружено: <a href=\"%s\">%s</a>, %s. %s %s by %s (%s, %s)",
+			embyWebURL.String(),
+			episodeLabel,
+			showName,
+			display.English.Languages().Name(translationVariant.Language),
+			cases.Title(language.English).String(translationVariant.Kind.Label()),
+			authorslistformatter.Format(authorsList),
+			videoMetadataDisplayTitle,
+			filesize.FormatBitrate(fileBitrate),
 		),
 		&telegrambotapiclient.SendMessageOptionalParams{
 			ParseMode:          "HTML",

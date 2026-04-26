@@ -31,6 +31,7 @@ func NewService(
 	embyUserID string,
 	logger *slog.Logger,
 	embyClient *embyclient.Client,
+	embyPublicURL *url.URL,
 ) *Service {
 	return &Service{
 		logger:             logger,
@@ -38,6 +39,7 @@ func NewService(
 		embyClient:         embyClient,
 		downloadsDirectory: downloadsDirectory,
 		embyUserID:         embyUserID,
+		embyPublicURL:      embyPublicURL,
 	}
 }
 
@@ -45,6 +47,7 @@ type Service struct {
 	logger                   *slog.Logger
 	manifestService          *manifest.Service
 	embyClient               *embyclient.Client
+	embyPublicURL            *url.URL
 	downloadsDirectory       string
 	embyLibraryItemID        string
 	embyLibraryRootDirectory string
@@ -1127,6 +1130,79 @@ func (s *Service) GetIDsByVideoFileRelativePath(
 	videoFileRelativePath string,
 ) (show.Anime365SeriesID, episode.Anime365EpisodeID, episode.Anime365TranslationID, bool) {
 	return s.manifestService.GetIDsByVideoFileRelativePath(videoFileRelativePath)
+}
+
+type EpisodeMetadataForNotification struct {
+	WebURL                    *url.URL
+	VideoMetadataDisplayTitle string
+	SeriesName                string
+	EpisodeLabel              string
+	Bitrate                   int64
+}
+
+func (s *Service) GetEpisodeMetadataForNotification(
+	ctx context.Context,
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+	translationID episode.Anime365TranslationID,
+) (EpisodeMetadataForNotification, error) {
+	embyItem, err := s.getEpisodeItem(ctx, showID, episodeID, translationID)
+	if err != nil {
+		if errors.Is(err, ErrEmbyItemNotFound) {
+			return EpisodeMetadataForNotification{}, ErrEmbyItemNotFound
+		} else if errors.Is(err, ErrTranslationNotFoundInManifest) {
+			return EpisodeMetadataForNotification{}, ErrTranslationNotFoundInManifest
+		} else {
+			return EpisodeMetadataForNotification{}, fmt.Errorf(
+				"failed to get episode emby item for translation %d: %w",
+				translationID,
+				err,
+			)
+		}
+	}
+
+	q := url.Values{}
+	q.Set("serverId", embyItem.ServerId)
+	q.Set("id", embyItem.Id)
+
+	webURL := *s.embyPublicURL
+	webURL.Path = "/web/index.html"
+	webURL.Fragment = "!/item?" + q.Encode()
+
+	result := EpisodeMetadataForNotification{
+		WebURL:       &webURL,
+		SeriesName:   embyItem.SeriesName,
+		EpisodeLabel: embyItem.Name,
+	}
+
+	for _, mediaSource := range embyItem.MediaSources {
+		if mediaSource.Type_ != nil && *mediaSource.Type_ != embyclient.DEFAULT__MediaSourceType {
+			continue
+		}
+
+		result.Bitrate = int64(mediaSource.Bitrate)
+
+		for _, mediaStream := range mediaSource.MediaStreams {
+			if mediaStream.Type_ != nil && *mediaStream.Type_ != embyclient.VIDEO_MediaStreamType {
+				continue
+			}
+
+			if !mediaStream.IsDefault {
+				continue
+			}
+
+			result.VideoMetadataDisplayTitle = mediaStream.DisplayTitle
+		}
+	}
+
+	if result.Bitrate == 0 || result.VideoMetadataDisplayTitle == "" {
+		return EpisodeMetadataForNotification{}, fmt.Errorf(
+			"failed to determine file bitrate and video metadata of emby item %s",
+			embyItem.Id,
+		)
+	}
+
+	return result, nil
 }
 
 var (

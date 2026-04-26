@@ -8,7 +8,6 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/episodedownloader"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
-	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
@@ -21,7 +20,6 @@ var EpisodeDownloader = func(
 	episodeService *episode.Service,
 	logger *slog.Logger,
 	embyService *emby.Service,
-	notificationSenderService *notificationsender.Service,
 	smartDownloader *downloader.SmartDownloader,
 	anime365Client *anime365client.Client,
 ) (*episodedownloader.Service, error) {
@@ -33,7 +31,6 @@ var EpisodeDownloader = func(
 		embyService,
 		smartDownloader,
 		anime365Client,
-		notificationSenderService,
 		config.Translations,
 		config.DownloadTimeoutVideo,
 	), nil

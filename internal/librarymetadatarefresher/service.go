@@ -13,6 +13,7 @@ import (
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 	"github.com/flaksp/anime365-sidecar/pkg/filesystemutils"
@@ -24,25 +25,28 @@ func NewService(
 	embyService *emby.Service,
 	smartDownloader *downloader.SmartDownloader,
 	logger *slog.Logger,
+	notificationSenderService *notificationsender.Service,
 	downloadImageTimeout time.Duration,
 ) *Service {
 	return &Service{
-		showService:          showService,
-		episodeService:       episodeService,
-		embyService:          embyService,
-		downloader:           smartDownloader,
-		logger:               logger,
-		downloadImageTimeout: downloadImageTimeout,
+		showService:               showService,
+		episodeService:            episodeService,
+		embyService:               embyService,
+		downloader:                smartDownloader,
+		logger:                    logger,
+		notificationSenderService: notificationSenderService,
+		downloadImageTimeout:      downloadImageTimeout,
 	}
 }
 
 type Service struct {
-	showService          *show.Service
-	episodeService       *episode.Service
-	embyService          *emby.Service
-	downloader           *downloader.SmartDownloader
-	logger               *slog.Logger
-	downloadImageTimeout time.Duration
+	showService               *show.Service
+	episodeService            *episode.Service
+	embyService               *emby.Service
+	downloader                *downloader.SmartDownloader
+	logger                    *slog.Logger
+	notificationSenderService *notificationsender.Service
+	downloadImageTimeout      time.Duration
 }
 
 func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
@@ -120,6 +124,45 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 					)
 
 					continue
+				}
+
+				if s.notificationSenderService != nil {
+					metadata, err := s.embyService.GetEpisodeMetadataForNotification(
+						ctx,
+						showEntity.Anime365ID,
+						episodeEntity.Anime365ID,
+						translationEntity.Anime365ID,
+					)
+					if err != nil {
+						s.logger.WarnContext(
+							ctx,
+							"Failed to fetch episode metadata for notification",
+							slog.Int64("show_id", int64(showEntity.Anime365ID)),
+							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+							slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+							slog.String("error", err.Error()),
+						)
+
+						continue
+					}
+
+					err = s.notificationSenderService.TranslationDownloaded(
+						ctx,
+						metadata.WebURL,
+						metadata.SeriesName,
+						metadata.EpisodeLabel,
+						translationEntity.Variant,
+						translationEntity.Authors,
+						metadata.VideoMetadataDisplayTitle,
+						metadata.Bitrate,
+					)
+					if err != nil {
+						s.logger.WarnContext(
+							ctx,
+							"Error sending translation downloaded notification to user",
+							slog.String("error", err.Error()),
+						)
+					}
 				}
 			}
 		}

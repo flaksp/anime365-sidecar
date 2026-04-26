@@ -15,10 +15,17 @@ var EmbyService = func(config *config.Env, logger *slog.Logger, embyClient *emby
 		return nil, err
 	}
 
+	embyPublicURL := config.EmbyBaseURL
+
+	if config.EmbyPublicBaseURL != nil {
+		embyPublicURL = config.EmbyPublicBaseURL
+	}
+
 	return emby.NewService(
 		downloadsDirectoryAbsolutePath,
 		config.EmbyUserID,
 		logger,
 		embyClient,
+		embyPublicURL,
 	), nil
 }

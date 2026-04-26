@@ -7,6 +7,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/librarymetadatarefresher"
+	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 )
@@ -18,6 +19,7 @@ var LibraryMetadataRefresher = func(
 	embyService *emby.Service,
 	smartDownloader *downloader.SmartDownloader,
 	logger *slog.Logger,
+	notificationSenderService *notificationsender.Service,
 ) (*librarymetadatarefresher.Service, error) {
 	return librarymetadatarefresher.NewService(
 		showService,
@@ -25,6 +27,7 @@ var LibraryMetadataRefresher = func(
 		embyService,
 		smartDownloader,
 		logger,
+		notificationSenderService,
 		config.DownloadTimeoutImage,
 	), nil
 }

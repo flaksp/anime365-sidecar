@@ -12,6 +12,7 @@ type Env struct {
 	ShikimoriBaseURL                      *url.URL      `env:"SIDECAR_SHIKIMORI_BASE_URL,required,notEmpty"                         envDefault:"https://shikimori.io"`
 	JikanAPIBaseURL                       *url.URL      `env:"SIDECAR_JIKAN_API_BASE_URL,required,notEmpty"                         envDefault:"https://api.jikan.moe"`
 	TelegramBotAPICredentials             *url.URL      `env:"SIDECAR_TELEGRAM_BOT_API_CREDENTIALS"`
+	EmbyPublicBaseURL                     *url.URL      `env:"SIDECAR_EMBY_PUBLIC_BASE_URL"`
 	LibraryDirectory                      string        `env:"SIDECAR_LIBRARY_DIRECTORY,required,notEmpty"`
 	EmbyLibraryID                         string        `env:"SIDECAR_EMBY_LIBRARY_ID,required,notEmpty"`
 	EmbyUserID                            string        `env:"SIDECAR_EMBY_USER_ID,required,notEmpty"`

@@ -13,7 +13,6 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
-	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
@@ -30,35 +29,32 @@ func NewService(
 	embyService *emby.Service,
 	smartDownloader *downloader.SmartDownloader,
 	anime365Client *anime365client.Client,
-	notificationSenderService *notificationsender.Service,
 	translations []string,
 	downloadVideoTimeout time.Duration,
 ) *Service {
 	return &Service{
-		myListService:             myListService,
-		scanSource:                scanSource,
-		episodeService:            episodeService,
-		logger:                    logger,
-		embyService:               embyService,
-		downloader:                smartDownloader,
-		anime365Client:            anime365Client,
-		notificationSenderService: notificationSenderService,
-		translationVariants:       parseTranslationVariants(translations, logger),
-		downloadVideoTimeout:      downloadVideoTimeout,
+		myListService:        myListService,
+		scanSource:           scanSource,
+		episodeService:       episodeService,
+		logger:               logger,
+		embyService:          embyService,
+		downloader:           smartDownloader,
+		anime365Client:       anime365Client,
+		translationVariants:  parseTranslationVariants(translations, logger),
+		downloadVideoTimeout: downloadVideoTimeout,
 	}
 }
 
 type Service struct {
-	myListService             *mylist.Service
-	scanSource                *scansource.Service
-	episodeService            *episode.Service
-	logger                    *slog.Logger
-	embyService               *emby.Service
-	downloader                *downloader.SmartDownloader
-	anime365Client            *anime365client.Client
-	notificationSenderService *notificationsender.Service
-	translationVariants       map[episode.TranslationVariant]struct{}
-	downloadVideoTimeout      time.Duration
+	myListService        *mylist.Service
+	scanSource           *scansource.Service
+	episodeService       *episode.Service
+	logger               *slog.Logger
+	embyService          *emby.Service
+	downloader           *downloader.SmartDownloader
+	anime365Client       *anime365client.Client
+	translationVariants  map[episode.TranslationVariant]struct{}
+	downloadVideoTimeout time.Duration
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
@@ -253,23 +249,6 @@ func (s *Service) downloadTranslation(
 	)
 	if err != nil {
 		return fmt.Errorf("failed to save translation: %w", err)
-	}
-
-	if s.notificationSenderService != nil {
-		err = s.notificationSenderService.TranslationDownloaded(
-			ctx,
-			showEntity,
-			episodeEntity,
-			translationEntity,
-			translationMedia,
-		)
-		if err != nil {
-			s.logger.WarnContext(
-				ctx,
-				"Error sending translation downloaded notification to user",
-				slog.String("error", err.Error()),
-			)
-		}
 	}
 
 	return nil
