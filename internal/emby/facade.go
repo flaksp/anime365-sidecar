@@ -16,6 +16,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/show"
+	"github.com/flaksp/anime365-sidecar/pkg/authorslistformatter"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 	"github.com/flaksp/anime365-sidecar/pkg/filename"
 	"golang.org/x/text/cases"
@@ -94,8 +95,8 @@ func (s *Service) CreateShowIfNotExists(
 	showDirectoryName, showManifestEntryExists := s.manifestService.GetShowDirectoryName(showID)
 	if !showManifestEntryExists {
 		computedShowDirectoryName := filename.Clean(showTitle)
-		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
 		computedShowDirectoryName = strings.Join(strings.Fields(computedShowDirectoryName), " ")
+		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
 		computedShowDirectoryName = fmt.Sprintf("%s [anime365id=%d]", computedShowDirectoryName, showID)
 
 		showDirectoryName = computedShowDirectoryName
@@ -196,7 +197,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 			episodeEntity.EpisodeLabel,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsList(translationEntity.Authors),
+			formatAuthorsListForFileName(translationEntity.Authors),
 			translationEntity.Anime365ID,
 		)
 	} else if episodeEntity.IsSpecial {
@@ -213,7 +214,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 			episodeEntity.EpisodeLabel,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsList(translationEntity.Authors),
+			formatAuthorsListForFileName(translationEntity.Authors),
 			translationEntity.Anime365ID,
 		)
 	} else {
@@ -222,7 +223,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 			episodeEntity.EpisodeNumber,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsList(translationEntity.Authors),
+			formatAuthorsListForFileName(translationEntity.Authors),
 			translationEntity.Anime365ID,
 		)
 
@@ -230,8 +231,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	}
 
 	translationFileName = filename.Clean(translationFileName)
-	translationFileName = strings.TrimSpace(translationFileName)
 	translationFileName = strings.Join(strings.Fields(translationFileName), " ")
+	translationFileName = strings.TrimSpace(translationFileName)
 
 	videoFileRelativePath := filepath.Join(translationDirectoryRelativePath, translationFileName+".mp4")
 	videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
@@ -1331,42 +1332,16 @@ func (s *Service) getEpisodeItem(
 	return itemsResponse.Items[0], nil
 }
 
-func formatAuthorsList(authorsList []string) string {
-	if len(authorsList) == 0 {
-		return "Unknown"
-	}
-
-	if len(authorsList) == 1 {
-		return authorsList[0]
-	}
-
-	team := authorsList[0]
+func formatAuthorsListForFileName(authorsList []string) string {
+	formattedAuthorsList := authorslistformatter.Format(authorsList)
 
 	replacer := strings.NewReplacer("(", " ", ")", " ", " - ", " ")
 
-	cleanedAuthorsList := make([]string, 0, len(authorsList)-1)
-	for _, author := range authorsList[1:] {
-		author = replacer.Replace(author)
-		author = strings.TrimSpace(author)
-		author = strings.Join(strings.Fields(author), " ")
+	formattedAuthorsList = replacer.Replace(formattedAuthorsList)
+	formattedAuthorsList = strings.Join(strings.Fields(formattedAuthorsList), " ")
+	formattedAuthorsList = strings.TrimSpace(formattedAuthorsList)
 
-		cleanedAuthorsList = append(cleanedAuthorsList, author)
-	}
-
-	cleanedAuthorsListLen := len(cleanedAuthorsList)
-
-	var featuringStr string
-
-	if cleanedAuthorsListLen <= 2 {
-		featuringStr = strings.Join(cleanedAuthorsList, " and ")
-	} else {
-		featuringStr = strings.Join(
-			cleanedAuthorsList[:cleanedAuthorsListLen-1],
-			", ",
-		) + " and " + cleanedAuthorsList[cleanedAuthorsListLen-1]
-	}
-
-	return fmt.Sprintf("%s ft. %s", team, featuringStr)
+	return formattedAuthorsList
 }
 
 func areStringSliceAndNameLongIdPairSliceEqual(a []string, b []embyclient.NameLongIdPair) bool {
