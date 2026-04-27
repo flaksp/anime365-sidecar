@@ -1403,8 +1403,6 @@ func (s *Service) getEpisodeItem(
 }
 
 func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDto) error {
-	embyItem.MediaSources = nil
-
 	err := s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
 	if err != nil {
 		return fmt.Errorf("failed to update emby item %s via api: %w", embyItem.Id, err)

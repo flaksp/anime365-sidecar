@@ -3,41 +3,65 @@ package embyclient
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 )
 
+// fieldsFromDocumentation is a list of fields from the API documentation that may be requested.
+// They are not used by the app but item update API may fail if some of these fields are missing in request.
+var fieldsFromDocumentation = map[string]struct{}{
+	"Budget":                  {},
+	"Chapters":                {},
+	"DateCreated":             {},
+	"Genres":                  {},
+	"HomePageUrl":             {},
+	"IndexOptions":            {},
+	"MediaStreams":            {},
+	"Overview":                {},
+	"ParentId":                {},
+	"Path":                    {},
+	"People":                  {},
+	"PrimaryImageAspectRatio": {},
+	"ProviderIds":             {},
+	"Revenue":                 {},
+	"SortName":                {},
+	"Studios":                 {},
+	"Taglines":                {},
+}
+
 // baseItemDTOFields is a list of fields the app reads
-var baseItemDTOFields = []string{
-	"CommunityRating",
-	"DisplayOrder",
-	"EndDate",
-	"EpisodeNumber",
-	"ForcedSortName",
-	"Genres",
-	"Id",
-	"IndexNumber",
-	"LockData",
-	"LockedFields",
-	"MediaSources",
-	"Name",
-	"OfficialRating",
-	"OriginalTitle",
-	"Overview",
-	"Path",
-	"People",
-	"PremiereDate",
-	"ProductionYear",
-	"RunTimeTicks",
-	"SeriesName",
-	"ServerId",
-	"SortName",
-	"Status",
-	"Studios",
-	"TagItems",
-	"Taglines",
-	"Tags",
+var baseItemDTOFields = map[string]struct{}{
+	"CommunityRating": {},
+	"DisplayOrder":    {},
+	"EndDate":         {},
+	"EpisodeNumber":   {},
+	"ForcedSortName":  {},
+	"Genres":          {},
+	"Id":              {},
+	"IndexNumber":     {},
+	"LockData":        {},
+	"LockedFields":    {},
+	"MediaSources":    {},
+	"Name":            {},
+	"OfficialRating":  {},
+	"OriginalTitle":   {},
+	"Overview":        {},
+	"Path":            {},
+	"People":          {},
+	"PremiereDate":    {},
+	"ProductionYear":  {},
+	"RunTimeTicks":    {},
+	"SeriesName":      {},
+	"ServerId":        {},
+	"SortName":        {},
+	"Status":          {},
+	"Studios":         {},
+	"TagItems":        {},
+	"Taglines":        {},
+	"Tags":            {},
 }
 
 type GetItemsOptionalParams struct {
@@ -57,8 +81,21 @@ func (c *Client) GetItems(
 	ctx context.Context,
 	optionalParams *GetItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
+	fieldsMap := make(map[string]struct{})
+
+	maps.Copy(fieldsMap, fieldsFromDocumentation)
+	maps.Copy(fieldsMap, baseItemDTOFields)
+
+	fields := make([]string, 0, len(fieldsMap))
+
+	for field := range fieldsMap {
+		fields = append(fields, field)
+	}
+
+	slices.Sort(fields)
+
 	queryParams := url.Values{
-		"Fields": baseItemDTOFields,
+		"Fields": {strings.Join(fields, ",")},
 	}
 
 	if optionalParams.Filters != nil {
@@ -132,8 +169,21 @@ func (c *Client) GetUserItems(
 	userID string,
 	optionalParams *GetUserItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
+	fieldsMap := make(map[string]struct{})
+
+	maps.Copy(fieldsMap, fieldsFromDocumentation)
+	maps.Copy(fieldsMap, baseItemDTOFields)
+
+	fields := make([]string, 0, len(fieldsMap))
+
+	for field := range fieldsMap {
+		fields = append(fields, field)
+	}
+
+	slices.Sort(fields)
+
 	queryParams := url.Values{
-		"Fields": {strings.Join(baseItemDTOFields, ",")},
+		"Fields": {strings.Join(fields, ",")},
 	}
 
 	if optionalParams.Filters != nil {
