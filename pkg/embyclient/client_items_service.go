@@ -8,6 +8,38 @@ import (
 	"strings"
 )
 
+// baseItemDTOFields is a list of fields the app reads
+var baseItemDTOFields = []string{
+	"CommunityRating",
+	"DisplayOrder",
+	"EndDate",
+	"EpisodeNumber",
+	"ForcedSortName",
+	"Genres",
+	"Id",
+	"IndexNumber",
+	"LockData",
+	"LockedFields",
+	"MediaSources",
+	"Name",
+	"OfficialRating",
+	"OriginalTitle",
+	"Overview",
+	"Path",
+	"People",
+	"PremiereDate",
+	"ProductionYear",
+	"RunTimeTicks",
+	"SeriesName",
+	"ServerId",
+	"SortName",
+	"Status",
+	"Studios",
+	"TagItems",
+	"Taglines",
+	"Tags",
+}
+
 type GetItemsOptionalParams struct {
 	Recursive           *bool
 	AnyProviderIdEquals map[string]string
@@ -25,38 +57,8 @@ func (c *Client) GetItems(
 	ctx context.Context,
 	optionalParams *GetItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
-	fields := []string{
-		"Budget",
-		"Chapters",
-		"CommunityRating",
-		"DateCreated",
-		"EndDate",
-		"Genres",
-		"HomePageUrl",
-		"IndexOptions",
-		"LockedFields",
-		"MediaStreams",
-		"OfficialRating",
-		"OriginalTitle",
-		"Overview",
-		"ParentId",
-		"Path",
-		"People",
-		"People",
-		"PremiereDate",
-		"PrimaryImageAspectRatio",
-		"ProductionYear",
-		"ProviderIds",
-		"Revenue",
-		"SortName",
-		"Status",
-		"Studios",
-		"TagItems", // this field is not returned for some reason
-		"Taglines",
-	}
-
 	queryParams := url.Values{
-		"Fields": {strings.Join(fields, ",")},
+		"Fields": baseItemDTOFields,
 	}
 
 	if optionalParams.Filters != nil {
@@ -130,38 +132,8 @@ func (c *Client) GetUserItems(
 	userID string,
 	optionalParams *GetUserItemsOptionalParams,
 ) (QueryResultBaseItemDto, error) {
-	fields := []string{
-		"Budget",
-		"Chapters",
-		"CommunityRating",
-		"DateCreated",
-		"EndDate",
-		"Genres",
-		"HomePageUrl",
-		"IndexOptions",
-		"LockedFields",
-		"MediaStreams",
-		"OfficialRating",
-		"OriginalTitle",
-		"Overview",
-		"ParentId",
-		"Path",
-		"People",
-		"People",
-		"PremiereDate",
-		"PrimaryImageAspectRatio",
-		"ProductionYear",
-		"ProviderIds",
-		"Revenue",
-		"SortName",
-		"Status",
-		"Studios",
-		"TagItems", // this field is not returned for some reason
-		"Taglines",
-	}
-
 	queryParams := url.Values{
-		"Fields": {strings.Join(fields, ",")},
+		"Fields": {strings.Join(baseItemDTOFields, ",")},
 	}
 
 	if optionalParams.Filters != nil {
