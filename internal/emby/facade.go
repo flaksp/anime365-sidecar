@@ -962,29 +962,23 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 ) (int64, episode.Anime365TranslationID, error) {
-	embyShowPath, err := s.getEmbyShowPath(showID)
+	embyItem, err := s.getSeriesItem(ctx, showID)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get show path for %d: %w", showID, err)
+		if errors.Is(err, ErrEmbyItemNotFound) {
+			return 0, 0, ErrEmbyItemNotFound
+		} else if errors.Is(err, ErrShowNotFoundInManifest) {
+			return 0, 0, ErrShowNotFoundInManifest
+		} else {
+			return 0, 0, fmt.Errorf(
+				"failed to get series emby item for show %d: %w",
+				showID,
+				err,
+			)
+		}
 	}
 
-	itemsResponse, err := s.embyClient.GetItems(ctx, &embyclient.GetItemsOptionalParams{
-		Path:             embyShowPath,
-		IncludeItemTypes: []string{"Series"},
-		Recursive:        new(true),
-		Limit:            1,
-	})
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get items from emby for show %d: %w", showID, err)
-	}
-
-	if len(itemsResponse.Items) == 0 {
-		return 0, 0, ErrEmbyItemNotFound
-	}
-
-	showItem := itemsResponse.Items[0]
-
-	itemsResponse, err = s.embyClient.GetUserItems(ctx, s.embyUserID, &embyclient.GetUserItemsOptionalParams{
-		ParentID:         showItem.Id,
+	itemsResponse, err := s.embyClient.GetUserItems(ctx, s.embyUserID, &embyclient.GetUserItemsOptionalParams{
+		ParentID:         embyItem.Id,
 		Limit:            1,
 		IsPlayed:         new(true),
 		SortBy:           []string{"SortName"},
@@ -1000,9 +994,9 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		return 0, 0, ErrEmbyItemNotFound
 	}
 
-	item := itemsResponse.Items[0]
+	embyItem = itemsResponse.Items[0]
 
-	videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, item.Path)
+	videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, embyItem.Path)
 	if err != nil {
 		return 0, 0, fmt.Errorf(
 			"failed to get episode video file path relative to emby library root directory: %w",
@@ -1015,7 +1009,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		return 0, 0, errors.New("failed to find translation in manifest by video file relative path")
 	}
 
-	return int64(item.IndexNumber), translationID, nil
+	return int64(embyItem.IndexNumber), translationID, nil
 }
 
 func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
