@@ -384,7 +384,7 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 		embyclient.TAGS_MetadataFields,
 	}
 
-	err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+	err = s.updateItem(ctx, embyItem)
 	if err != nil {
 		return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 	}
@@ -507,7 +507,7 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+		err = s.updateItem(ctx, embyItem)
 		if err != nil {
 			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 		}
@@ -637,7 +637,7 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+		err = s.updateItem(ctx, embyItem)
 		if err != nil {
 			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 		}
@@ -706,7 +706,7 @@ func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
 		embyclient.COMMUNITY_RATING_MetadataFields,
 	}
 
-	err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+	err = s.updateItem(ctx, embyItem)
 	if err != nil {
 		return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 	}
@@ -781,7 +781,7 @@ func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+		err = s.updateItem(ctx, embyItem)
 		if err != nil {
 			return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 		}
@@ -872,7 +872,7 @@ func (s *Service) UpdateTranslationMetadataWithJikanMetadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+		err = s.updateItem(ctx, embyItem)
 		if err != nil {
 			return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 		}
@@ -1400,6 +1400,17 @@ func (s *Service) getEpisodeItem(
 	}
 
 	return itemsResponse.Items[0], nil
+}
+
+func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDto) error {
+	embyItem.MediaSources = nil
+
+	err := s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+	if err != nil {
+		return fmt.Errorf("failed to update emby item %s via api: %w", embyItem.Id, err)
+	}
+
+	return nil
 }
 
 func formatAuthorsListForFileName(authorsList []string) string {
