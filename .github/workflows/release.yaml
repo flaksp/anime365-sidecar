@@ -76,7 +76,7 @@ jobs:
         run: tar -czf $ARCHIVE_NAME -C $BINARY_DIR $BINARY_NAME
 
       - name: Upload Archives to Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: archives/*
         env:
