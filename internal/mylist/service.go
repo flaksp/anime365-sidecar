@@ -142,7 +142,7 @@ func (s *Service) LoadFromAnime365(ctx context.Context, profileID int64) error {
 		slog.Int("watching", len(watchingList)),
 		slog.Int("dropped", len(droppedList)),
 		slog.Int("completed", len(completedList)),
-		slog.Int("onHold", len(onHoldList)),
+		slog.Int("on_hold", len(onHoldList)),
 	)
 
 	return nil
