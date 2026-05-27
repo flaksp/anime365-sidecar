@@ -3,6 +3,7 @@ package anime365client
 import (
 	"errors"
 	"time"
+	_ "time/tzdata"
 )
 
 func ParseDateString(dateStr string) (time.Time, error) {
