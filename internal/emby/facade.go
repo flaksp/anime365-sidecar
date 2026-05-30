@@ -19,6 +19,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/pkg/authorslistformatter"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 	"github.com/flaksp/anime365-sidecar/pkg/filename"
+	"github.com/flaksp/anime365-sidecar/pkg/filesystemutils"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
@@ -147,16 +148,14 @@ func (s *Service) DeleteTranslation(
 	if exists {
 		videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
 
-		err := s.deleteFileIfExists(videoFileAbsolutePath)
-		if err != nil {
+		if err := filesystemutils.DeleteFileIfExists(videoFileAbsolutePath); err != nil {
 			return fmt.Errorf("delete video file: %w", err)
 		}
 
 		if subtitlesFileRelativePath != "" {
 			subtitlesFileAbsolutePath := filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
 
-			err := s.deleteFileIfExists(subtitlesFileAbsolutePath)
-			if err != nil {
+			if err := filesystemutils.DeleteFileIfExists(subtitlesFileAbsolutePath); err != nil {
 				return fmt.Errorf("delete subtitle file: %w", err)
 			}
 		}
@@ -900,7 +899,7 @@ func (s *Service) IsPosterExists(showID show.Anime365SeriesID, posterURL *url.UR
 		return false, fmt.Errorf("failed to compute poster file absolute path: %w", err)
 	}
 
-	fileExists, err := s.fileExists(fileAbsolutePath)
+	fileExists, err := filesystemutils.FileExists(fileAbsolutePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if file exists: %w", err)
 	}
@@ -1199,10 +1198,7 @@ func (s *Service) GetEpisodeMetadataForNotification(
 	return result, nil
 }
 
-var (
-	errNotDirectory = errors.New("not a directory")
-	errNotFile      = errors.New("not a file")
-)
+var errNotDirectory = errors.New("not a directory")
 
 func (s *Service) directoryExists(absolutePath string) (bool, error) {
 	info, err := os.Stat(absolutePath)
@@ -1221,23 +1217,6 @@ func (s *Service) directoryExists(absolutePath string) (bool, error) {
 	return false, errNotDirectory
 }
 
-func (s *Service) fileExists(absolutePath string) (bool, error) {
-	info, err := os.Stat(absolutePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("failed to check file: %w", err)
-	}
-
-	if info.IsDir() {
-		return false, errNotFile
-	}
-
-	return true, nil
-}
-
 func (s *Service) createDirectoryIfNotExists(absolutePath string) error {
 	directoryExists, err := s.directoryExists(absolutePath)
 	if err != nil {
@@ -1251,24 +1230,6 @@ func (s *Service) createDirectoryIfNotExists(absolutePath string) error {
 	err = os.Mkdir(absolutePath, 0o755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) deleteFileIfExists(absolutePath string) error {
-	fileExists, err := s.fileExists(absolutePath)
-	if err != nil {
-		return fmt.Errorf("failed to check file exists: %w", err)
-	}
-
-	if !fileExists {
-		return nil
-	}
-
-	err = os.Remove(absolutePath)
-	if err != nil {
-		return fmt.Errorf("failed to delete file: %w", err)
 	}
 
 	return nil

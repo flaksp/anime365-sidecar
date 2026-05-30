@@ -1,6 +1,8 @@
 package filesystemutils
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 )
@@ -28,4 +30,42 @@ func CopyThenDelete(src, dst string) error {
 	}
 
 	return os.Remove(src)
+}
+
+var ErrNotFile = errors.New("not a file")
+
+// FileExists deletes file if it exists.
+// Error ErrNotFile returned if target is not a file.
+func FileExists(absolutePath string) (bool, error) {
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to check file: %w", err)
+	}
+
+	if info.IsDir() {
+		return false, ErrNotFile
+	}
+
+	return true, nil
+}
+
+func DeleteFileIfExists(absolutePath string) error {
+	fileExists, err := FileExists(absolutePath)
+	if err != nil {
+		return fmt.Errorf("failed to check file exists: %w", err)
+	}
+
+	if !fileExists {
+		return nil
+	}
+
+	if err = os.Remove(absolutePath); err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	return nil
 }
