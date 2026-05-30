@@ -29,5 +29,6 @@ var LibraryMetadataRefresher = func(
 		logger,
 		notificationSenderService,
 		config.DownloadTimeoutImage,
+		config.TemporaryDirectory,
 	), nil
 }

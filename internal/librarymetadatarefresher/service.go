@@ -27,6 +27,7 @@ func NewService(
 	logger *slog.Logger,
 	notificationSenderService *notificationsender.Service,
 	downloadImageTimeout time.Duration,
+	temporaryDirectory string,
 ) *Service {
 	return &Service{
 		showService:               showService,
@@ -36,6 +37,7 @@ func NewService(
 		logger:                    logger,
 		notificationSenderService: notificationSenderService,
 		downloadImageTimeout:      downloadImageTimeout,
+		temporaryDirectory:        temporaryDirectory,
 	}
 }
 
@@ -46,6 +48,7 @@ type Service struct {
 	downloader                *downloader.SmartDownloader
 	logger                    *slog.Logger
 	notificationSenderService *notificationsender.Service
+	temporaryDirectory        string
 	downloadImageTimeout      time.Duration
 }
 
@@ -358,7 +361,7 @@ func (s *Service) downloadPosterIfNotExists(
 	}
 
 	posterTmpFile, err := os.CreateTemp(
-		"",
+		s.temporaryDirectory,
 		fmt.Sprintf("anime365-sidecar-poster-%d-*%s", showEntity.Anime365ID, filepath.Ext(showEntity.PosterURL.Path)),
 	)
 	if err != nil {
@@ -419,7 +422,7 @@ func (s *Service) downloadBackdropIfNotExists(
 	}
 
 	backdropTmpFile, err := os.CreateTemp(
-		"",
+		s.temporaryDirectory,
 		fmt.Sprintf("anime365-sidecar-backdrop-%s-*%s", screenshotID, filepath.Ext(imageURL.Path)),
 	)
 	if err != nil {

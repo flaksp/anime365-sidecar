@@ -33,5 +33,6 @@ var EpisodeDownloader = func(
 		anime365Client,
 		config.Translations,
 		config.DownloadTimeoutVideo,
+		config.TemporaryDirectory,
 	), nil
 }

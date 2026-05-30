@@ -31,6 +31,7 @@ func NewService(
 	anime365Client *anime365client.Client,
 	translations []string,
 	downloadVideoTimeout time.Duration,
+	temporaryDirectory string,
 ) *Service {
 	return &Service{
 		myListService:        myListService,
@@ -42,6 +43,7 @@ func NewService(
 		anime365Client:       anime365Client,
 		translationVariants:  parseTranslationVariants(translations, logger),
 		downloadVideoTimeout: downloadVideoTimeout,
+		temporaryDirectory:   temporaryDirectory,
 	}
 }
 
@@ -54,6 +56,7 @@ type Service struct {
 	downloader           *downloader.SmartDownloader
 	anime365Client       *anime365client.Client
 	translationVariants  map[episode.TranslationVariant]struct{}
+	temporaryDirectory   string
 	downloadVideoTimeout time.Duration
 }
 
@@ -157,7 +160,7 @@ func (s *Service) downloadTranslation(
 	}
 
 	videoTmpFile, err := os.CreateTemp(
-		"",
+		s.temporaryDirectory,
 		fmt.Sprintf("anime365-sidecar-translation-%d-*.mp4", translationEntity.Anime365ID),
 	)
 	if err != nil {
