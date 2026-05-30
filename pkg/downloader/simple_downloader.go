@@ -28,7 +28,7 @@ type SimpleDownloader struct {
 	logger     *slog.Logger
 }
 
-func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, destinationFile *os.File) error {
+func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, destinationFilePath string) error {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL.String(), nil)
 	if err != nil {
 		return fmt.Errorf("creating http request with context: %w", err)
@@ -45,6 +45,22 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 			d.logger.WarnContext(ctx, "Closing HTTP response body stream error", slog.String("error", err.Error()))
 		}
 	}(httpResponse.Body)
+
+	destinationFile, err := os.OpenFile(destinationFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("opening destination file: %w", err)
+	}
+
+	defer func() {
+		if err := destinationFile.Close(); err != nil {
+			d.logger.WarnContext(
+				ctx,
+				"Closing destination file in simple downloader error",
+				slog.String("error", err.Error()),
+				slog.String("file_path", destinationFilePath),
+			)
+		}
+	}()
 
 	if httpResponse.ContentLength > 0 {
 		err = destinationFile.Truncate(httpResponse.ContentLength)
@@ -91,6 +107,10 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := destinationFile.Sync(); err != nil {
+		return fmt.Errorf("sync destination file: %w", err)
 	}
 
 	return nil

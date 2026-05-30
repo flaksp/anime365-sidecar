@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 )
 
 func NewSmartDownloader(
@@ -23,11 +22,11 @@ type SmartDownloader struct {
 	chunkedDownloader *ChunkedDownloader
 }
 
-func (d *SmartDownloader) Download(ctx context.Context, fileURL *url.URL, destinationFile *os.File) error {
-	err := d.chunkedDownloader.Download(ctx, fileURL, destinationFile)
+func (d *SmartDownloader) Download(ctx context.Context, fileURL *url.URL, destinationFilePath string) error {
+	err := d.chunkedDownloader.Download(ctx, fileURL, destinationFilePath)
 	switch {
 	case errors.Is(err, ErrRangeRequestsNotSupported):
-		err = d.simpleDownloader.Download(ctx, fileURL, destinationFile)
+		err = d.simpleDownloader.Download(ctx, fileURL, destinationFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to download a file using simple downloader: %w", err)
 		}

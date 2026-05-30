@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
@@ -368,17 +367,24 @@ func (s *Service) downloadPosterIfNotExists(
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 
-	defer func() {
-		if err := posterTmpFile.Close(); err != nil {
-			s.logger.WarnContext(ctx, "Closing poster tmp file error", slog.String("error", err.Error()))
-		}
+	posterTmpFilePath := posterTmpFile.Name()
 
-		if err := os.Remove(posterTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+	if err := posterTmpFile.Close(); err != nil {
+		s.logger.WarnContext(
+			ctx,
+			"Closing poster tmp file error",
+			slog.String("error", err.Error()),
+			slog.String("file_path", posterTmpFilePath),
+		)
+	}
+
+	defer func() {
+		if err := filesystemutils.DeleteFileIfExists(posterTmpFilePath); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to remove poster temp file",
 				slog.String("error", err.Error()),
-				slog.String("file_path", posterTmpFile.Name()),
+				slog.String("file_path", posterTmpFilePath),
 			)
 		}
 	}()
@@ -386,7 +392,7 @@ func (s *Service) downloadPosterIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	err = s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFile)
+	err = s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to download poster: %w", err)
 	}
@@ -399,12 +405,7 @@ func (s *Service) downloadPosterIfNotExists(
 		return fmt.Errorf("failed to compute poster file name: %w", err)
 	}
 
-	err = os.Rename(posterTmpFile.Name(), posterFileAbsolutePath)
-	if errors.Is(err, syscall.EXDEV) {
-		err = filesystemutils.CopyThenDelete(posterTmpFile.Name(), posterFileAbsolutePath)
-	}
-
-	if err != nil {
+	if err = filesystemutils.CopyThenDelete(posterTmpFilePath, posterFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move poster file: %w", err)
 	}
 
@@ -429,17 +430,23 @@ func (s *Service) downloadBackdropIfNotExists(
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 
-	defer func() {
-		if err := backdropTmpFile.Close(); err != nil {
-			s.logger.WarnContext(ctx, "Closing backdrop tmp file error", slog.String("error", err.Error()))
-		}
+	backdropTmpFilePath := backdropTmpFile.Name()
+	if err := backdropTmpFile.Close(); err != nil {
+		s.logger.WarnContext(
+			ctx,
+			"Closing backdrop tmp file error",
+			slog.String("error", err.Error()),
+			slog.String("file_path", backdropTmpFilePath),
+		)
+	}
 
-		if err := os.Remove(backdropTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+	defer func() {
+		if err := filesystemutils.DeleteFileIfExists(backdropTmpFilePath); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to remove backdrop temp file",
 				slog.String("error", err.Error()),
-				slog.String("file_path", backdropTmpFile.Name()),
+				slog.String("file_path", backdropTmpFilePath),
 			)
 		}
 	}()
@@ -447,7 +454,7 @@ func (s *Service) downloadBackdropIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	err = s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFile)
+	err = s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to download backdrop: %w", err)
 	}
@@ -457,12 +464,7 @@ func (s *Service) downloadBackdropIfNotExists(
 		return fmt.Errorf("failed to compute backdrop file name: %w", err)
 	}
 
-	err = os.Rename(backdropTmpFile.Name(), backdropFileAbsolutePath)
-	if errors.Is(err, syscall.EXDEV) {
-		err = filesystemutils.CopyThenDelete(backdropTmpFile.Name(), backdropFileAbsolutePath)
-	}
-
-	if err != nil {
+	if err = filesystemutils.CopyThenDelete(backdropTmpFilePath, backdropFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move backdrop file: %w", err)
 	}
 

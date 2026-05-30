@@ -8,28 +8,45 @@ import (
 )
 
 // CopyThenDelete solves Linux problem when it cannot rename (move) files across filesystems.
-func CopyThenDelete(src, dst string) error {
-	in, err := os.Open(src)
+// On Windows it solves problem of copying file across disks.
+func CopyThenDelete(sourceFilePath, destinationFilePath string) error {
+	// Try atomic rename first (works when src and dst are on the same filesystem)
+	if err := os.Rename(sourceFilePath, destinationFilePath); err == nil {
+		return nil
+	}
+
+	sourceFile, err := os.Open(sourceFilePath)
 	if err != nil {
 		return err
 	}
-	defer in.Close() // nolint:errcheck
+	defer sourceFile.Close() // nolint:errcheck
 
-	out, err := os.Create(dst)
+	destinationFile, err := os.Create(destinationFilePath)
 	if err != nil {
 		return err
 	}
-	defer out.Close() // nolint:errcheck
 
-	if _, err := io.Copy(out, in); err != nil {
+	defer func() {
+		destinationFile.Close() // nolint:errcheck
+
+		if err != nil {
+			os.Remove(destinationFilePath) // nolint:errcheck
+		}
+	}()
+
+	if _, err = io.Copy(destinationFile, sourceFile); err != nil {
 		return err
 	}
 
-	if err := out.Sync(); err != nil {
+	if err = destinationFile.Sync(); err != nil {
 		return err
 	}
 
-	return os.Remove(src)
+	if err = destinationFile.Close(); err != nil {
+		return err
+	}
+
+	return os.Remove(sourceFilePath)
 }
 
 var ErrNotFile = errors.New("not a file")

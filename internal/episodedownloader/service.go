@@ -2,12 +2,10 @@ package episodedownloader
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
@@ -167,17 +165,23 @@ func (s *Service) downloadTranslation(
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 
-	defer func() {
-		if err := videoTmpFile.Close(); err != nil {
-			s.logger.WarnContext(ctx, "Closing video tmp file error", slog.String("error", err.Error()))
-		}
+	videoTmpFilePath := videoTmpFile.Name()
+	if err := videoTmpFile.Close(); err != nil {
+		s.logger.WarnContext(
+			ctx,
+			"Closing video tmp file error",
+			slog.String("error", err.Error()),
+			slog.String("file_path", videoTmpFilePath),
+		)
+	}
 
-		if err := os.Remove(videoTmpFile.Name()); err != nil && !os.IsNotExist(err) {
+	defer func() {
+		if err := filesystemutils.DeleteFileIfExists(videoTmpFilePath); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to remove video temp file",
 				slog.String("error", err.Error()),
-				slog.String("file_path", videoTmpFile.Name()),
+				slog.String("file_path", videoTmpFilePath),
 			)
 		}
 	}()
@@ -185,12 +189,11 @@ func (s *Service) downloadTranslation(
 	videoDownloadCtxWithTimeout, videoDownloadCtxCancel := context.WithTimeout(ctx, s.downloadVideoTimeout)
 	defer videoDownloadCtxCancel()
 
-	err = s.downloader.Download(
+	if err := s.downloader.Download(
 		videoDownloadCtxWithTimeout,
 		translationMedia.VideoURL,
-		videoTmpFile,
-	)
-	if err != nil {
+		videoTmpFilePath,
+	); err != nil {
 		return fmt.Errorf("failed to download translation media entity video: %w", err)
 	}
 
@@ -213,12 +216,7 @@ func (s *Service) downloadTranslation(
 		return fmt.Errorf("failed to get compute translation file paths for downloads: %w", err)
 	}
 
-	err = os.Rename(videoTmpFile.Name(), videoFileAbsolutePath)
-	if errors.Is(err, syscall.EXDEV) {
-		err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath)
-	}
-
-	if err != nil {
+	if err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move video file: %w", err)
 	}
 
@@ -228,16 +226,17 @@ func (s *Service) downloadTranslation(
 			return fmt.Errorf("failed to create subtitles file: %w", err)
 		}
 
-		defer func() {
-			err := subtitlesFile.Close()
-			if err != nil {
-				s.logger.WarnContext(ctx, "Closing subtitles file error", slog.String("error", err.Error()))
-			}
-		}()
-
-		_, err = subtitlesFile.Write(subtitlesBytes)
-		if err != nil {
+		if _, err = subtitlesFile.Write(subtitlesBytes); err != nil {
 			return fmt.Errorf("failed to write to subtitles file: %w", err)
+		}
+
+		if err := subtitlesFile.Close(); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Closing subtitles file error",
+				slog.String("error", err.Error()),
+				slog.String("file_path", subtitlesFileAbsoultePath),
+			)
 		}
 	}
 
