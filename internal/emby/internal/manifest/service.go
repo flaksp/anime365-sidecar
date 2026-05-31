@@ -81,8 +81,7 @@ func (s *Service) LoadFromDisk(ctx context.Context) error {
 		return err
 	}
 
-	err = json.Unmarshal(data, s.inMemoryManifest)
-	if err != nil {
+	if err := json.Unmarshal(data, s.inMemoryManifest); err != nil {
 		s.logger.ErrorContext(ctx,
 			"Failed to parse JSON in manifest file",
 			slog.Any("error", err),

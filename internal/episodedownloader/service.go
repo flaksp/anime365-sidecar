@@ -99,8 +99,7 @@ func (s *Service) DownloadEpisode(
 			continue
 		}
 
-		err = s.downloadTranslation(ctx, showEntity, episodeEntity, translationEntity)
-		if err != nil {
+		if err := s.downloadTranslation(ctx, showEntity, episodeEntity, translationEntity); err != nil {
 			s.logger.ErrorContext(
 				ctx,
 				"Failed to download translation, skipping it",
@@ -147,12 +146,11 @@ func (s *Service) downloadTranslation(
 			slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
 		)
 
-		err = s.embyService.DeleteTranslation(
+		if err := s.embyService.DeleteTranslation(
 			showEntity.Anime365ID,
 			episodeEntity.Anime365ID,
 			translationEntity.Anime365ID,
-		)
-		if err != nil {
+		); err != nil {
 			return fmt.Errorf("failed to delete translation: %w", err)
 		}
 	}
@@ -216,7 +214,7 @@ func (s *Service) downloadTranslation(
 		return fmt.Errorf("failed to get compute translation file paths for downloads: %w", err)
 	}
 
-	if err = filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath); err != nil {
+	if err := filesystemutils.CopyThenDelete(videoTmpFile.Name(), videoFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move video file: %w", err)
 	}
 
@@ -240,7 +238,7 @@ func (s *Service) downloadTranslation(
 		}
 	}
 
-	err = s.embyService.SaveTranslationPaths(
+	if err := s.embyService.SaveTranslationPaths(
 		ctx,
 		showEntity.Anime365ID,
 		episodeEntity.Anime365ID,
@@ -248,8 +246,7 @@ func (s *Service) downloadTranslation(
 		videoFileAbsolutePath,
 		subtitlesFileAbsoultePath,
 		translationMedia.Height,
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("failed to save translation: %w", err)
 	}
 

@@ -97,8 +97,7 @@ func (s *Service) RunOnce(
 			continue
 		}
 
-		err = s.episodeService.MarkTranslationAsWatched(ctx, translationID)
-		if err != nil {
+		if err := s.episodeService.MarkTranslationAsWatched(ctx, translationID); err != nil {
 			s.logger.ErrorContext(
 				ctx,
 				"Failed to notify Anime 365 about watched episode translation",

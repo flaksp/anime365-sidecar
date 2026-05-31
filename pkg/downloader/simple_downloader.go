@@ -40,8 +40,7 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 	}
 
 	defer func(httpResponseBody io.ReadCloser) {
-		err := httpResponseBody.Close()
-		if err != nil {
+		if err := httpResponseBody.Close(); err != nil {
 			d.logger.WarnContext(ctx, "Closing HTTP response body stream error", slog.String("error", err.Error()))
 		}
 	}(httpResponse.Body)
@@ -63,8 +62,7 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 	}()
 
 	if httpResponse.ContentLength > 0 {
-		err = destinationFile.Truncate(httpResponse.ContentLength)
-		if err != nil {
+		if err := destinationFile.Truncate(httpResponse.ContentLength); err != nil {
 			return fmt.Errorf("truncating destination file: %w", err)
 		}
 	}

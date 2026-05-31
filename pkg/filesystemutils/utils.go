@@ -38,11 +38,11 @@ func CopyThenDelete(sourceFilePath, destinationFilePath string) error {
 		return err
 	}
 
-	if err = destinationFile.Sync(); err != nil {
+	if err := destinationFile.Sync(); err != nil {
 		return err
 	}
 
-	if err = destinationFile.Close(); err != nil {
+	if err := destinationFile.Close(); err != nil {
 		return err
 	}
 
@@ -80,7 +80,7 @@ func DeleteFileIfExists(absolutePath string) error {
 		return nil
 	}
 
-	if err = os.Remove(absolutePath); err != nil {
+	if err := os.Remove(absolutePath); err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
 

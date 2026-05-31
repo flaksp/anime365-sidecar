@@ -27,16 +27,14 @@ func fileExists(absolutePath string) bool {
 
 var Config = func() (*config.Env, error) {
 	if fileExists(".env") {
-		err := godotenv.Load()
-		if err != nil {
+		if err := godotenv.Load(); err != nil {
 			return nil, err
 		}
 	}
 
 	var config config.Env
 
-	err := env.Parse(&config)
-	if err != nil {
+	if err := env.Parse(&config); err != nil {
 		return nil, err
 	}
 

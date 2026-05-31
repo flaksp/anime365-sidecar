@@ -12,12 +12,11 @@ import (
 var LoginToAnime365 = func(config *config.Env, logger *slog.Logger, client *anime365client.Client, myListService *mylist.Service) error {
 	ctx := context.Background()
 
-	err := client.Login(
+	if err := client.Login(
 		ctx,
 		config.Anime365Login,
 		config.Anime365Password,
-	)
-	if err != nil {
+	); err != nil {
 		logger.ErrorContext(ctx, "Failed to login", slog.String("error", err.Error()))
 
 		return err

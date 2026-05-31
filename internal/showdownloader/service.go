@@ -65,11 +65,10 @@ func (s *Service) RunOnce(
 	maps.Copy(showIDs, s.scanSource.GetForcedShowIDs())
 
 	for showID := range showIDs {
-		err := s.downloadShow(
+		if err := s.downloadShow(
 			ctx,
 			showID,
-		)
-		if err != nil {
+		); err != nil {
 			if errors.Is(err, ErrShowHasNoEpisodes) {
 				s.logger.DebugContext(
 					ctx,
@@ -109,8 +108,11 @@ func (s *Service) downloadShow(
 		return ErrShowHasNoEpisodes
 	}
 
-	err = s.embyService.CreateShowIfNotExists(showID, showEntity.TitleRomaji, showEntity.MyAnimeListID)
-	if err != nil {
+	if err := s.embyService.CreateShowIfNotExists(
+		showID,
+		showEntity.TitleRomaji,
+		showEntity.MyAnimeListID,
+	); err != nil {
 		return fmt.Errorf("failed to create show: %w", err)
 	}
 
@@ -119,8 +121,7 @@ func (s *Service) downloadShow(
 			continue
 		}
 
-		err = s.episodeDownloader.DownloadEpisode(ctx, showEntity, episodePreview.Anime365ID)
-		if err != nil {
+		if err := s.episodeDownloader.DownloadEpisode(ctx, showEntity, episodePreview.Anime365ID); err != nil {
 			s.logger.ErrorContext(
 				ctx,
 				"Failed to download episode, skipping it",

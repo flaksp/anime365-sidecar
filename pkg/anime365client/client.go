@@ -250,8 +250,7 @@ func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryPar
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+		if err := Body.Close(); err != nil {
 			c.logger.WarnContext(
 				ctx,
 				"Anime 365 API response body closed unexpectedly",
@@ -415,8 +414,7 @@ func (c *Client) sendPOSTRequestToWeb(
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+		if err := Body.Close(); err != nil {
 			c.logger.WarnContext(
 				ctx,
 				"Anime 365 web response body closed unexpectedly",

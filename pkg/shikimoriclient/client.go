@@ -129,8 +129,7 @@ func (c *Client) sendRequestToGraphQL(
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+		if err := Body.Close(); err != nil {
 			c.logger.WarnContext(
 				ctx,
 				"Shikimori API response body closed unexpectedly",

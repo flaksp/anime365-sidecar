@@ -108,14 +108,12 @@ func (s *Service) CreateShowIfNotExists(
 
 	showDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, showDirectoryName)
 
-	err := s.createDirectoryIfNotExists(showDirectoryAbsolutePath)
-	if err != nil {
+	if err := s.createDirectoryIfNotExists(showDirectoryAbsolutePath); err != nil {
 		return fmt.Errorf("create show directory: %w", err)
 	}
 
 	if !showManifestEntryExists {
-		err = s.manifestService.InsertShowEntry(showID, showDirectoryName, myAnimeListID)
-		if err != nil {
+		if err := s.manifestService.InsertShowEntry(showID, showDirectoryName, myAnimeListID); err != nil {
 			return fmt.Errorf("failed to set show entry: %w", err)
 		}
 	}
@@ -161,8 +159,7 @@ func (s *Service) DeleteTranslation(
 		}
 	}
 
-	err := s.manifestService.DeleteTranslation(showID, episodeID, translationID)
-	if err != nil {
+	if err := s.manifestService.DeleteTranslation(showID, episodeID, translationID); err != nil {
 		return fmt.Errorf("delete translation from manifest: %w", err)
 	}
 
@@ -189,8 +186,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Trailers")
 		translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
 
-		err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath)
-		if err != nil {
+		if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
 			return "", "", fmt.Errorf("failed to create trailers directory: %w", err)
 		}
 
@@ -206,8 +202,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Specials")
 		translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
 
-		err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath)
-		if err != nil {
+		if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
 			return "", "", fmt.Errorf("failed to create specials directory: %w", err)
 		}
 
@@ -284,20 +279,18 @@ func (s *Service) SaveTranslationPaths(
 		}
 	}
 
-	err = s.manifestService.SetTranslationEntry(
+	if err := s.manifestService.SetTranslationEntry(
 		showID,
 		episodeID,
 		translationID,
 		videoFileRelativePath,
 		subtitlesFileRelativePath,
 		height,
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("failed to add translation entry to manifest: %w", err)
 	}
 
-	err = s.embyClient.RefreshLibrary(ctx)
-	if err != nil {
+	if err := s.embyClient.RefreshLibrary(ctx); err != nil {
 		s.logger.WarnContext(ctx, "Failed to refresh library, but it's not critical")
 	}
 
@@ -392,12 +385,11 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 		embyclient.TAGS_MetadataFields,
 	}
 
-	err = s.updateItem(ctx, embyItem)
-	if err != nil {
+	if err := s.updateItem(ctx, embyItem); err != nil {
 		return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 	}
 
-	if err = s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, embyItem.Id); err != nil {
+	if err := s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, embyItem.Id); err != nil {
 		return fmt.Errorf("failed to set show emby item id in manifest %d: %w", showFromAnime365.Anime365ID, err)
 	}
 
@@ -515,8 +507,7 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.updateItem(ctx, embyItem)
-		if err != nil {
+		if err := s.updateItem(ctx, embyItem); err != nil {
 			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 		}
 	} else {
@@ -645,8 +636,7 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.updateItem(ctx, embyItem)
-		if err != nil {
+		if err := s.updateItem(ctx, embyItem); err != nil {
 			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
 		}
 	} else {
@@ -714,12 +704,11 @@ func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
 		embyclient.COMMUNITY_RATING_MetadataFields,
 	}
 
-	err = s.updateItem(ctx, embyItem)
-	if err != nil {
+	if err := s.updateItem(ctx, embyItem); err != nil {
 		return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 	}
 
-	if err = s.manifestService.SetTranslationEmbyItemID(
+	if err := s.manifestService.SetTranslationEmbyItemID(
 		showID,
 		episodeEntity.Anime365ID,
 		translationEntity.Anime365ID,
@@ -789,8 +778,7 @@ func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.updateItem(ctx, embyItem)
-		if err != nil {
+		if err := s.updateItem(ctx, embyItem); err != nil {
 			return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 		}
 	} else {
@@ -880,8 +868,7 @@ func (s *Service) UpdateTranslationMetadataWithJikanMetadata(
 	embyItem.LockData = true
 
 	if needUpdate {
-		err = s.updateItem(ctx, embyItem)
-		if err != nil {
+		if err := s.updateItem(ctx, embyItem); err != nil {
 			return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
 		}
 	} else {
@@ -1236,8 +1223,7 @@ func (s *Service) createDirectoryIfNotExists(absolutePath string) error {
 		return nil
 	}
 
-	err = os.Mkdir(absolutePath, 0o755)
-	if err != nil {
+	if err := os.Mkdir(absolutePath, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 

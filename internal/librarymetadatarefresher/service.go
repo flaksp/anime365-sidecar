@@ -68,7 +68,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 			continue
 		}
 
-		if err = s.embyService.InitialUpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+		if err := s.embyService.InitialUpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to perform initial update show in Emby with Anime 365 metadata, this metadata was not updated",
@@ -77,8 +77,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 			)
 		}
 
-		err = s.downloadPosterIfNotExists(ctx, showEntity)
-		if err != nil {
+		if err := s.downloadPosterIfNotExists(ctx, showEntity); err != nil {
 			s.logger.WarnContext(ctx, "Failed to download poster",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
@@ -110,7 +109,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 					continue
 				}
 
-				if err = s.embyService.InitialUpdateTranslationMetadataWithAnime365Metadata(
+				if err := s.embyService.InitialUpdateTranslationMetadataWithAnime365Metadata(
 					ctx,
 					showID,
 					episodeEntity,
@@ -148,7 +147,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 						continue
 					}
 
-					err = s.notificationSenderService.TranslationDownloaded(
+					if err := s.notificationSenderService.TranslationDownloaded(
 						ctx,
 						metadata.WebURL,
 						metadata.SeriesName,
@@ -157,8 +156,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 						translationEntity.Authors,
 						metadata.VideoMetadataDisplayTitle,
 						metadata.Bitrate,
-					)
-					if err != nil {
+					); err != nil {
 						s.logger.WarnContext(
 							ctx,
 							"Error sending translation downloaded notification to user",
@@ -190,7 +188,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			continue
 		}
 
-		if err = s.embyService.UpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+		if err := s.embyService.UpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to update show in Emby with Anime 365 metadata, this metadata was not updated",
@@ -210,7 +208,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			)
 		}
 
-		if err = s.embyService.UpdateShowMetadataWithShikimoriMetadata(ctx, showID, showFromShikimori); err != nil {
+		if err := s.embyService.UpdateShowMetadataWithShikimoriMetadata(ctx, showID, showFromShikimori); err != nil {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to update show in Emby with Shikimori metadata, this metadata was not updated",
@@ -219,8 +217,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			)
 		}
 
-		err = s.downloadPosterIfNotExists(ctx, showEntity)
-		if err != nil {
+		if err := s.downloadPosterIfNotExists(ctx, showEntity); err != nil {
 			s.logger.WarnContext(ctx, "Failed to download poster",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
@@ -229,8 +226,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 
 		if showFromShikimori.Screenshots != nil {
 			for _, screenshot := range showFromShikimori.Screenshots {
-				err := s.downloadBackdropIfNotExists(ctx, showID, screenshot.ImageURL, screenshot.ID)
-				if err != nil {
+				if err := s.downloadBackdropIfNotExists(ctx, showID, screenshot.ImageURL, screenshot.ID); err != nil {
 					s.logger.WarnContext(
 						ctx,
 						"Failed to download screenshot as backdrop",
@@ -297,7 +293,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 					continue
 				}
 
-				if err = s.embyService.UpdateTranslationMetadataWithAnime365Metadata(
+				if err := s.embyService.UpdateTranslationMetadataWithAnime365Metadata(
 					ctx,
 					showID,
 					episodeEntity,
@@ -316,7 +312,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 				}
 
 				if episodeMetadataFromJikan.Title != "" {
-					if err = s.embyService.UpdateTranslationMetadataWithJikanMetadata(
+					if err := s.embyService.UpdateTranslationMetadataWithJikanMetadata(
 						ctx,
 						showID,
 						episodeID,
@@ -392,8 +388,7 @@ func (s *Service) downloadPosterIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	err = s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFilePath)
-	if err != nil {
+	if err := s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFilePath); err != nil {
 		return fmt.Errorf("failed to download poster: %w", err)
 	}
 
@@ -405,7 +400,7 @@ func (s *Service) downloadPosterIfNotExists(
 		return fmt.Errorf("failed to compute poster file name: %w", err)
 	}
 
-	if err = filesystemutils.CopyThenDelete(posterTmpFilePath, posterFileAbsolutePath); err != nil {
+	if err := filesystemutils.CopyThenDelete(posterTmpFilePath, posterFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move poster file: %w", err)
 	}
 
@@ -454,8 +449,7 @@ func (s *Service) downloadBackdropIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	err = s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFilePath)
-	if err != nil {
+	if err := s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFilePath); err != nil {
 		return fmt.Errorf("failed to download backdrop: %w", err)
 	}
 
@@ -464,12 +458,11 @@ func (s *Service) downloadBackdropIfNotExists(
 		return fmt.Errorf("failed to compute backdrop file name: %w", err)
 	}
 
-	if err = filesystemutils.CopyThenDelete(backdropTmpFilePath, backdropFileAbsolutePath); err != nil {
+	if err := filesystemutils.CopyThenDelete(backdropTmpFilePath, backdropFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move backdrop file: %w", err)
 	}
 
-	err = s.embyService.AddBackdrop(showID, screenshotID)
-	if err != nil {
+	if err := s.embyService.AddBackdrop(showID, screenshotID); err != nil {
 		return fmt.Errorf("failed to add backdrop: %w", err)
 	}
 

@@ -26,8 +26,7 @@ func (d *SmartDownloader) Download(ctx context.Context, fileURL *url.URL, destin
 	err := d.chunkedDownloader.Download(ctx, fileURL, destinationFilePath)
 	switch {
 	case errors.Is(err, ErrRangeRequestsNotSupported):
-		err = d.simpleDownloader.Download(ctx, fileURL, destinationFilePath)
-		if err != nil {
+		if err := d.simpleDownloader.Download(ctx, fileURL, destinationFilePath); err != nil {
 			return fmt.Errorf("failed to download a file using simple downloader: %w", err)
 		}
 

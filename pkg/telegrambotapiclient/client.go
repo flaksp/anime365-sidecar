@@ -107,8 +107,7 @@ func (c *Client) sendRequestToAPI(ctx context.Context, apiMethod string, params 
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+		if err := Body.Close(); err != nil {
 			c.logger.WarnContext(
 				httpRequestCtx,
 				"Telegram Bot API response body closed unexpectedly",

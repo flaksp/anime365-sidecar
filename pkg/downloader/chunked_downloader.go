@@ -77,8 +77,7 @@ func (d *ChunkedDownloader) Download(
 	}()
 
 	if fileSizeBytes > 0 {
-		err = destinationFile.Truncate(fileSizeBytes)
-		if err != nil {
+		if err := destinationFile.Truncate(fileSizeBytes); err != nil {
 			return fmt.Errorf("truncating destination file: %w", err)
 		}
 	}

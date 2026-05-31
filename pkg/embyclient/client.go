@@ -60,8 +60,7 @@ func (c *Client) sendGETRequestToAPI(ctx context.Context, endpoint string, query
 	}
 
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
+		if err := Body.Close(); err != nil {
 			c.logger.WarnContext(ctx, "Emby API response body closed unexpectedly", slog.String("error", err.Error()))
 		}
 	}(httpResponse.Body)
