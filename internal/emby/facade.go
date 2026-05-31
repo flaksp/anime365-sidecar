@@ -212,7 +212,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		}
 
 		translationFileName = fmt.Sprintf(
-			"%s - %s %s by %s, ID %d",
+			"%s - %s %s by %s, t%d",
 			episodeEntity.EpisodeLabel,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
@@ -221,7 +221,7 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		)
 	} else {
 		translationFileName = fmt.Sprintf(
-			"E%d - %s %s by %s, ID %d",
+			"E%d - %s %s by %s, t%d",
 			episodeEntity.EpisodeNumber,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
@@ -245,7 +245,16 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	)
 
 	if translationMedia.SubtitlesURL != nil {
-		subtitlesFileRelativePath = filepath.Join(translationDirectoryRelativePath, translationFileName+".ass")
+		subtitlesFileRelativePath = filepath.Join(
+			translationDirectoryRelativePath,
+			fmt.Sprintf(
+				"%s.%s(%s).ass",
+				translationFileName,
+				display.English.Languages().Name(translationEntity.Variant.Language),
+				formatAuthorsListForFileName(translationEntity.Authors),
+			),
+		)
+
 		subtitlesFileAbsolutePath = filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
 	}
 
