@@ -30,32 +30,40 @@ func NewService(
 	translations []string,
 	downloadVideoTimeout time.Duration,
 	temporaryDirectory string,
+	preferredTranslationAuthors []string,
 ) *Service {
+	preferredTranslationAuthorsMap := make(map[string]struct{}, len(preferredTranslationAuthors))
+	for _, preferredTranslationAuthor := range preferredTranslationAuthors {
+		preferredTranslationAuthorsMap[strings.ToLower(preferredTranslationAuthor)] = struct{}{}
+	}
+
 	return &Service{
-		myListService:        myListService,
-		scanSource:           scanSource,
-		episodeService:       episodeService,
-		logger:               logger,
-		embyService:          embyService,
-		downloader:           smartDownloader,
-		anime365Client:       anime365Client,
-		translationVariants:  parseTranslationVariants(translations, logger),
-		downloadVideoTimeout: downloadVideoTimeout,
-		temporaryDirectory:   temporaryDirectory,
+		myListService:                 myListService,
+		scanSource:                    scanSource,
+		episodeService:                episodeService,
+		logger:                        logger,
+		embyService:                   embyService,
+		downloader:                    smartDownloader,
+		anime365Client:                anime365Client,
+		translationVariantsToDownload: parseTranslationVariants(translations, logger),
+		downloadVideoTimeout:          downloadVideoTimeout,
+		temporaryDirectory:            temporaryDirectory,
+		preferredTranslationAuthors:   preferredTranslationAuthorsMap,
 	}
 }
 
 type Service struct {
-	myListService        *mylist.Service
-	scanSource           *scansource.Service
-	episodeService       *episode.Service
-	logger               *slog.Logger
-	embyService          *emby.Service
-	downloader           *downloader.SmartDownloader
-	anime365Client       *anime365client.Client
-	translationVariants  map[episode.TranslationVariant]struct{}
-	temporaryDirectory   string
-	downloadVideoTimeout time.Duration
+	myListService                 *mylist.Service
+	scanSource                    *scansource.Service
+	episodeService                *episode.Service
+	logger                        *slog.Logger
+	embyService                   *emby.Service
+	downloader                    *downloader.SmartDownloader
+	anime365Client                *anime365client.Client
+	translationVariantsToDownload map[episode.TranslationVariant]struct{}
+	preferredTranslationAuthors   map[string]struct{}
+	temporaryDirectory            string
+	downloadVideoTimeout          time.Duration
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
@@ -95,7 +103,7 @@ func (s *Service) DownloadEpisode(
 	}
 
 	for _, translationEntity := range episodeEntity.Translations {
-		if _, ok := s.translationVariants[translationEntity.Variant]; !ok {
+		if !s.shouldDownloadTranslation(translationEntity, episodeEntity.Translations) {
 			continue
 		}
 
@@ -294,4 +302,61 @@ func parseTranslationVariants(translations []string, logger *slog.Logger) map[ep
 	}
 
 	return translationVariants
+}
+
+func (s *Service) shouldDownloadTranslation(
+	translationEntity episode.Translation,
+	otherTranslationEntities []episode.Translation,
+) bool {
+	if _, ok := s.translationVariantsToDownload[translationEntity.Variant]; !ok {
+		return false
+	}
+
+	// download everything if no preferences specified
+	if len(s.preferredTranslationAuthors) == 0 {
+		return true
+	}
+
+	// download if this is preferred translation
+	if s.translationHasPreferredAuthor(translationEntity) {
+		return true
+	}
+
+	foundPreferredInOtherTranslations := false
+
+	for _, otherTranslationEntity := range otherTranslationEntities {
+		if otherTranslationEntity.Anime365ID == translationEntity.Anime365ID {
+			continue
+		}
+
+		if _, ok := s.translationVariantsToDownload[otherTranslationEntity.Variant]; !ok {
+			continue
+		}
+
+		if s.translationHasPreferredAuthor(otherTranslationEntity) {
+			foundPreferredInOtherTranslations = true
+
+			break
+		}
+	}
+
+	// download everything if all available translations are not preferred
+	return !foundPreferredInOtherTranslations
+}
+
+func (s *Service) translationHasPreferredAuthor(
+	translationEntity episode.Translation,
+) bool {
+	translationAuthorsMap := make(map[string]struct{}, len(translationEntity.Authors))
+	for _, author := range translationEntity.Authors {
+		translationAuthorsMap[strings.ToLower(author)] = struct{}{}
+	}
+
+	for preferredTranslationAuthor := range s.preferredTranslationAuthors {
+		if _, ok := translationAuthorsMap[preferredTranslationAuthor]; ok {
+			return true
+		}
+	}
+
+	return false
 }
