@@ -29,4 +29,5 @@ type Env struct {
 	FreshItemsMetadataRefreshIdleInterval time.Duration `env:"SIDECAR_FRESH_ITEMS_METADATA_REFRESH_IDLE_INTERVAL,required,notEmpty" envDefault:"1m"`
 	LogLevel                              slog.Level    `env:"SIDECAR_LOG_LEVEL,required,notEmpty"                                  envDefault:"INFO"`
 	DownloadTimeoutImage                  time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_IMAGE,required,notEmpty"                     envDefault:"1m"`
+	EpisodesToDownloadAhead               uint32        `env:"SIDECAR_EPISODES_TO_DOWNLOAD_AHEAD,required,notEmpty"                 envDefault:"50"`
 }

@@ -31,6 +31,7 @@ func NewService(
 	downloadVideoTimeout time.Duration,
 	temporaryDirectory string,
 	preferredTranslationAuthors []string,
+	episodesToDownloadAhead uint32,
 ) *Service {
 	preferredTranslationAuthorsMap := make(map[string]struct{}, len(preferredTranslationAuthors))
 	for _, preferredTranslationAuthor := range preferredTranslationAuthors {
@@ -49,6 +50,7 @@ func NewService(
 		downloadVideoTimeout:          downloadVideoTimeout,
 		temporaryDirectory:            temporaryDirectory,
 		preferredTranslationAuthors:   preferredTranslationAuthorsMap,
+		episodesToDownloadAhead:       episodesToDownloadAhead,
 	}
 }
 
@@ -64,9 +66,14 @@ type Service struct {
 	preferredTranslationAuthors   map[string]struct{}
 	temporaryDirectory            string
 	downloadVideoTimeout          time.Duration
+	episodesToDownloadAhead       uint32
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
+	if episodeNumber > s.myListService.GetLastWatchedEpisodeNumber(showID)+int64(s.episodesToDownloadAhead) {
+		return false
+	}
+
 	if s.scanSource.HasShow(showID) {
 		return true
 	}

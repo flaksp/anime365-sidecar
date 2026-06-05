@@ -35,5 +35,6 @@ var EpisodeDownloader = func(
 		config.DownloadTimeoutVideo,
 		config.TemporaryDirectory,
 		config.PreferredTranslationAuthors,
+		config.EpisodesToDownloadAhead,
 	), nil
 }
