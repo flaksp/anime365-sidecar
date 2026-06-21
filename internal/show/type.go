@@ -36,6 +36,7 @@ type Show struct {
 	MyAnimeListScore float64
 	Year             int
 	IsOngoing        bool
+	EpisodesTotal    int64
 }
 
 type EpisodePreview struct {
@@ -57,6 +58,7 @@ func NewShow(series anime365client.Series) (Show, error) {
 		Links:         make([]ExternalNamedLink, 0, len(series.Links)),
 		SeasonLabel:   series.Season,
 		TypeLabel:     series.TypeTitle,
+		EpisodesTotal: series.NumberOfEpisodes,
 	}
 
 	anime365URL, err := url.Parse(series.URL)

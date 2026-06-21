@@ -117,6 +117,10 @@ func (s *Service) downloadShow(
 	}
 
 	for _, episodePreview := range showEntity.EpisodePreviews {
+		if showEntity.EpisodesTotal > 0 && episodePreview.EpisodeNumber > showEntity.EpisodesTotal {
+			continue
+		}
+
 		if !s.episodeDownloader.ShouldEpisodeBeOnDisk(showID, episodePreview.EpisodeNumber) {
 			continue
 		}

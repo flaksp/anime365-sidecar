@@ -26,10 +26,11 @@ type Series struct {
 		Title string `json:"title"`
 		URL   string `json:"url"`
 	}
-	ID            int64 `json:"id"`
-	Year          int   `json:"year"`
-	IsAiring      int   `json:"isAiring"`
-	MyAnimeListID int64 `json:"myAnimeListId"`
+	ID               int64 `json:"id"`
+	Year             int   `json:"year"`
+	IsAiring         int   `json:"isAiring"`
+	MyAnimeListID    int64 `json:"myAnimeListId"`
+	NumberOfEpisodes int64 `json:"numberOfEpisodes"`
 }
 
 const (
