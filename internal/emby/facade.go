@@ -1370,7 +1370,7 @@ func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDt
 func formatAuthorsListForFileName(authorsList []string) string {
 	formattedAuthorsList := authorslistformatter.Format(authorsList)
 
-	replacer := strings.NewReplacer("(", " ", ")", " ", " - ", " ")
+	replacer := strings.NewReplacer("(", " ", ")", " ", "[", " ", "]", " ", " - ", " ")
 
 	formattedAuthorsList = replacer.Replace(formattedAuthorsList)
 	formattedAuthorsList = strings.Join(strings.Fields(formattedAuthorsList), " ")
