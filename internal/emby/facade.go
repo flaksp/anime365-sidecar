@@ -903,6 +903,31 @@ func (s *Service) IsPosterExists(showID show.Anime365SeriesID, posterURL *url.UR
 	return fileExists, nil
 }
 
+func (s *Service) ComputeBannerFileAbsolutePath(showID show.Anime365SeriesID, bannerURL *url.URL) (string, error) {
+	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showID)
+	if !exists {
+		return "", errors.New("show directory not found")
+	}
+
+	fileAbsolutePath := filepath.Join(s.downloadsDirectory, showDirectoryName, "banner"+filepath.Ext(bannerURL.Path))
+
+	return fileAbsolutePath, nil
+}
+
+func (s *Service) IsBannerExists(showID show.Anime365SeriesID, bannerURL *url.URL) (bool, error) {
+	fileAbsolutePath, err := s.ComputeBannerFileAbsolutePath(showID, bannerURL)
+	if err != nil {
+		return false, fmt.Errorf("failed to compute banner file absolute path: %w", err)
+	}
+
+	fileExists, err := filesystemutils.FileExists(fileAbsolutePath)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if file exists: %w", err)
+	}
+
+	return fileExists, nil
+}
+
 func (s *Service) ComputePosterFileAbsolutePath(showID show.Anime365SeriesID, posterURL *url.URL) (string, error) {
 	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showID)
 	if !exists {

@@ -27,6 +27,7 @@ func main() {
 		fx.Provide(module.EmbyClient),
 		fx.Provide(module.ShikimoriClient),
 		fx.Provide(module.JikanClient),
+		fx.Provide(module.AnilistClient),
 		fx.Provide(module.NotificationSender),
 		fx.Provide(module.TelegramBotAPIClient),
 		fx.Provide(module.EmbyService),

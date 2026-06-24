@@ -84,6 +84,37 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 			)
 		}
 
+		bannerURL, err := s.showService.GetBannerImageURLFromAniList(ctx, showEntity.MyAnimeListID)
+		if err != nil {
+			if errors.Is(err, show.ErrAniListMediaNotFound) {
+				s.logger.DebugContext(
+					ctx,
+					"Media not found in AniList, skipping it",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				)
+			} else if errors.Is(err, show.ErrAniListMediaHasNoBanner) {
+				s.logger.DebugContext(
+					ctx,
+					"Media does not have banner on AniList, skipping it",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				)
+			} else {
+				s.logger.WarnContext(
+					ctx,
+					"Failed to get banner image URL from Anilist",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.String("error", err.Error()),
+				)
+			}
+		} else if bannerURL != nil {
+			if err := s.downloadBannerIfNotExists(ctx, showEntity.Anime365ID, bannerURL); err != nil {
+				s.logger.WarnContext(ctx, "Failed to download banner",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.String("error", err.Error()),
+				)
+			}
+		}
+
 		for episodeID, items := range items {
 			episodeEntity, err := s.episodeService.GetEpisode(ctx, episodeID)
 			if err != nil {
@@ -222,6 +253,37 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
+		}
+
+		bannerURL, err := s.showService.GetBannerImageURLFromAniList(ctx, showEntity.MyAnimeListID)
+		if err != nil {
+			if errors.Is(err, show.ErrAniListMediaNotFound) {
+				s.logger.DebugContext(
+					ctx,
+					"Media not found in AniList, skipping it",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				)
+			} else if errors.Is(err, show.ErrAniListMediaHasNoBanner) {
+				s.logger.DebugContext(
+					ctx,
+					"Media does not have banner on AniList, skipping it",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				)
+			} else {
+				s.logger.WarnContext(
+					ctx,
+					"Failed to get banner image URL from Anilist",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.String("error", err.Error()),
+				)
+			}
+		} else if bannerURL != nil {
+			if err := s.downloadBannerIfNotExists(ctx, showEntity.Anime365ID, bannerURL); err != nil {
+				s.logger.WarnContext(ctx, "Failed to download banner",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.String("error", err.Error()),
+				)
+			}
 		}
 
 		if showFromShikimori.Screenshots != nil {
@@ -402,6 +464,72 @@ func (s *Service) downloadPosterIfNotExists(
 
 	if err := filesystemutils.CopyThenDelete(posterTmpFilePath, posterFileAbsolutePath); err != nil {
 		return fmt.Errorf("failed to move poster file: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) downloadBannerIfNotExists(
+	ctx context.Context,
+	showID show.Anime365SeriesID,
+	bannerURL *url.URL,
+) error {
+	exists, err := s.embyService.IsBannerExists(showID, bannerURL)
+	if err != nil {
+		return fmt.Errorf("failed to check if show banner exists: %w", err)
+	}
+
+	if exists {
+		return nil
+	}
+
+	bannerTmpFile, err := os.CreateTemp(
+		s.temporaryDirectory,
+		fmt.Sprintf("anime365-sidecar-banner-%d-*%s", showID, filepath.Ext(bannerURL.Path)),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+
+	bannerTmpFilePath := bannerTmpFile.Name()
+
+	if err := bannerTmpFile.Close(); err != nil {
+		s.logger.WarnContext(
+			ctx,
+			"Closing banner tmp file error",
+			slog.String("error", err.Error()),
+			slog.String("file_path", bannerTmpFilePath),
+		)
+	}
+
+	defer func() {
+		if err := filesystemutils.DeleteFileIfExists(bannerTmpFilePath); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to remove banner temp file",
+				slog.String("error", err.Error()),
+				slog.String("file_path", bannerTmpFilePath),
+			)
+		}
+	}()
+
+	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
+	defer imageDownloadCtxCancel()
+
+	if err := s.downloader.Download(imageDownloadCtxWithTimeout, bannerURL, bannerTmpFilePath); err != nil {
+		return fmt.Errorf("failed to download banner: %w", err)
+	}
+
+	bannerFileAbsolutePath, err := s.embyService.ComputeBannerFileAbsolutePath(
+		showID,
+		bannerURL,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to compute banner file name: %w", err)
+	}
+
+	if err := filesystemutils.CopyThenDelete(bannerTmpFilePath, bannerFileAbsolutePath); err != nil {
+		return fmt.Errorf("failed to move banner file: %w", err)
 	}
 
 	return nil

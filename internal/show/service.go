@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 
+	"github.com/flaksp/anime365-sidecar/pkg/anilistclient"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 	"github.com/flaksp/anime365-sidecar/pkg/shikimoriclient"
@@ -15,11 +17,13 @@ func NewService(
 	anime365Client *anime365client.Client,
 	embyClient *embyclient.Client,
 	shikimoriClient *shikimoriclient.Client,
+	anilistClient *anilistclient.Client,
 	logger *slog.Logger,
 ) *Service {
 	return &Service{
 		anime365Client:  anime365Client,
 		shikimoriClient: shikimoriClient,
+		anilistClient:   anilistClient,
 		embyClient:      embyClient,
 		logger:          logger,
 	}
@@ -29,6 +33,7 @@ type Service struct {
 	anime365Client  *anime365client.Client
 	embyClient      *embyclient.Client
 	shikimoriClient *shikimoriclient.Client
+	anilistClient   *anilistclient.Client
 	logger          *slog.Logger
 }
 
@@ -102,4 +107,34 @@ func (s *Service) GetShowsFromShikimori(
 	}
 
 	return res, nil
+}
+
+var (
+	ErrAniListMediaNotFound    = errors.New("media not found in anilist")
+	ErrAniListMediaHasNoBanner = errors.New("anilist media has no nanner")
+)
+
+func (s *Service) GetBannerImageURLFromAniList(
+	ctx context.Context,
+	id MyAnimeListID,
+) (*url.URL, error) {
+	mediaDTO, err := s.anilistClient.GetMedia(ctx, int64(id))
+	if err != nil {
+		return nil, fmt.Errorf("getting animes from anilist api: %w", err)
+	}
+
+	if mediaDTO == nil {
+		return nil, ErrAniListMediaNotFound
+	}
+
+	if mediaDTO.BannerImage == nil {
+		return nil, ErrAniListMediaHasNoBanner
+	}
+
+	bannerURL, err := url.Parse(*mediaDTO.BannerImage)
+	if err != nil {
+		return nil, fmt.Errorf("parsing banner image url: %w", err)
+	}
+
+	return bannerURL, nil
 }
