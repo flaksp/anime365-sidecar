@@ -22,7 +22,7 @@ func NewService(
 	showService *show.Service,
 	episodeService *episode.Service,
 	embyService *emby.Service,
-	smartDownloader *downloader.SmartDownloader,
+	simpleDownloader *downloader.SimpleDownloader,
 	logger *slog.Logger,
 	notificationSenderService *notificationsender.Service,
 	downloadImageTimeout time.Duration,
@@ -32,7 +32,7 @@ func NewService(
 		showService:               showService,
 		episodeService:            episodeService,
 		embyService:               embyService,
-		downloader:                smartDownloader,
+		simpleDownloader:          simpleDownloader,
 		logger:                    logger,
 		notificationSenderService: notificationSenderService,
 		downloadImageTimeout:      downloadImageTimeout,
@@ -44,7 +44,7 @@ type Service struct {
 	showService               *show.Service
 	episodeService            *episode.Service
 	embyService               *emby.Service
-	downloader                *downloader.SmartDownloader
+	simpleDownloader          *downloader.SimpleDownloader
 	logger                    *slog.Logger
 	notificationSenderService *notificationsender.Service
 	temporaryDirectory        string
@@ -450,7 +450,11 @@ func (s *Service) downloadPosterIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	if err := s.downloader.Download(imageDownloadCtxWithTimeout, showEntity.PosterURL, posterTmpFilePath); err != nil {
+	if err := s.simpleDownloader.Download(
+		imageDownloadCtxWithTimeout,
+		showEntity.PosterURL,
+		posterTmpFilePath,
+	); err != nil {
 		return fmt.Errorf("failed to download poster: %w", err)
 	}
 
@@ -516,7 +520,7 @@ func (s *Service) downloadBannerIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	if err := s.downloader.Download(imageDownloadCtxWithTimeout, bannerURL, bannerTmpFilePath); err != nil {
+	if err := s.simpleDownloader.Download(imageDownloadCtxWithTimeout, bannerURL, bannerTmpFilePath); err != nil {
 		return fmt.Errorf("failed to download banner: %w", err)
 	}
 
@@ -577,7 +581,7 @@ func (s *Service) downloadBackdropIfNotExists(
 	imageDownloadCtxWithTimeout, imageDownloadCtxCancel := context.WithTimeout(ctx, s.downloadImageTimeout)
 	defer imageDownloadCtxCancel()
 
-	if err := s.downloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFilePath); err != nil {
+	if err := s.simpleDownloader.Download(imageDownloadCtxWithTimeout, imageURL, backdropTmpFilePath); err != nil {
 		return fmt.Errorf("failed to download backdrop: %w", err)
 	}
 

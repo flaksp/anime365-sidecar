@@ -17,7 +17,7 @@ var LibraryMetadataRefresher = func(
 	showService *show.Service,
 	episodeService *episode.Service,
 	embyService *emby.Service,
-	smartDownloader *downloader.SmartDownloader,
+	simpleDownloader *downloader.SimpleDownloader,
 	logger *slog.Logger,
 	notificationSenderService *notificationsender.Service,
 ) (*librarymetadatarefresher.Service, error) {
@@ -25,7 +25,7 @@ var LibraryMetadataRefresher = func(
 		showService,
 		episodeService,
 		embyService,
-		smartDownloader,
+		simpleDownloader,
 		logger,
 		notificationSenderService,
 		config.DownloadTimeoutImage,
