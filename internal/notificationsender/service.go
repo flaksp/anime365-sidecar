@@ -65,3 +65,42 @@ func (s *Service) TranslationDownloaded(
 
 	return nil
 }
+
+func (s *Service) TranslationDeleted(
+	ctx context.Context,
+	showName string,
+	episodeLabel string,
+	translationID episode.Anime365TranslationID,
+	translationEntity episode.Translation,
+) error {
+	if s.telegramBotAPIClient == nil {
+		return nil
+	}
+
+	translationDescription := fmt.Sprintf("Перевод %d", translationID)
+	if translationEntity.Variant.Kind != "" {
+		translationDescription = fmt.Sprintf(
+			"%s %s by %s",
+			display.English.Languages().Name(translationEntity.Variant.Language),
+			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
+			authorslistformatter.Format(translationEntity.Authors),
+		)
+	}
+
+	_, err := s.telegramBotAPIClient.SendMessage(
+		ctx,
+		s.telegramRecipient,
+		fmt.Sprintf(
+			"🗑 Удалено: %s, %s. %s. Перевод был скрыт или удалён на Anime 365.",
+			episodeLabel,
+			showName,
+			translationDescription,
+		),
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send telegram bot message: %w", err)
+	}
+
+	return nil
+}

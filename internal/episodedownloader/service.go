@@ -12,6 +12,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
@@ -35,6 +36,7 @@ func NewService(
 	blacklistedTranslationAuthors []string,
 	episodesToDownloadAhead uint32,
 	deleteRemovedTranslations bool,
+	notificationSender *notificationsender.Service,
 ) *Service {
 	return &Service{
 		myListService:                 myListService,
@@ -51,20 +53,22 @@ func NewService(
 		blacklistedTranslationAuthors: parseTranslationAuthors(blacklistedTranslationAuthors),
 		episodesToDownloadAhead:       episodesToDownloadAhead,
 		deleteRemovedTranslations:     deleteRemovedTranslations,
+		notificationSender:            notificationSender,
 	}
 }
 
 type Service struct {
-	myListService                 *mylist.Service
-	scanSource                    *scansource.Service
+	anime365Client                *anime365client.Client
+	translationVariantsToDownload map[episode.TranslationVariant]struct{}
 	episodeService                *episode.Service
 	logger                        *slog.Logger
 	embyService                   *emby.Service
 	downloader                    *downloader.SmartDownloader
-	anime365Client                *anime365client.Client
-	translationVariantsToDownload map[episode.TranslationVariant]struct{}
-	preferredTranslationAuthors   map[string]struct{}
+	scanSource                    *scansource.Service
+	notificationSender            *notificationsender.Service
+	myListService                 *mylist.Service
 	blacklistedTranslationAuthors map[string]struct{}
+	preferredTranslationAuthors   map[string]struct{}
 	temporaryDirectory            string
 	downloadVideoTimeout          time.Duration
 	episodesToDownloadAhead       uint32
@@ -190,6 +194,30 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 			slog.Int64("translation_id", int64(translationID)),
 		)
 
+		if s.notificationSender != nil {
+			showName := showEntity.TitleRussian
+			if showName == "" {
+				showName = showEntity.TitleRomaji
+			}
+
+			if err := s.notificationSender.TranslationDeleted(
+				ctx,
+				showName,
+				episodeEntity.EpisodeLabel,
+				translationID,
+				episodeEntity.Translations[translationID],
+			); err != nil {
+				s.logger.WarnContext(
+					ctx,
+					"Error sending translation deleted notification to user",
+					slog.Int64("show_id", int64(showEntity.Anime365ID)),
+					slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+					slog.Int64("translation_id", int64(translationID)),
+					slog.String("error", err.Error()),
+				)
+			}
+		}
+
 		deletedAnyTranslation = true
 	}
 
@@ -207,19 +235,19 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 }
 
 func availableTranslationIDs(
-	translations []episode.Translation,
+	translations map[episode.Anime365TranslationID]episode.Translation,
 ) map[episode.Anime365TranslationID]struct{} {
 	if translations == nil {
 		return nil
 	}
 
 	translationIDs := make(map[episode.Anime365TranslationID]struct{}, len(translations))
-	for _, translationEntity := range translations {
+	for translationID, translationEntity := range translations {
 		if !translationEntity.IsVisible {
 			continue
 		}
 
-		translationIDs[translationEntity.Anime365ID] = struct{}{}
+		translationIDs[translationID] = struct{}{}
 	}
 
 	return translationIDs
@@ -457,7 +485,7 @@ func parseTranslationAuthors(authors []string) map[string]struct{} {
 
 func (s *Service) shouldDownloadTranslation(
 	translationEntity episode.Translation,
-	otherTranslationEntities []episode.Translation,
+	otherTranslationEntities map[episode.Anime365TranslationID]episode.Translation,
 ) bool {
 	if !translationEntity.IsVisible {
 		return false

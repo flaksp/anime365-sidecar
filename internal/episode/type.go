@@ -20,8 +20,8 @@ type (
 
 type Episode struct {
 	FirstUploadedAt time.Time
+	Translations    map[Anime365TranslationID]Translation
 	EpisodeLabel    string
-	Translations    []Translation
 	Anime365ID      Anime365EpisodeID
 	EpisodeNumber   int64
 	IsTrailer       bool
@@ -138,7 +138,7 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 	}
 
 	if episodeDTO.Translations != nil {
-		episodeEntity.Translations = make([]Translation, 0, len(episodeDTO.Translations))
+		episodeEntity.Translations = make(map[Anime365TranslationID]Translation, len(episodeDTO.Translations))
 	}
 
 	for _, translationDTO := range episodeDTO.Translations {
@@ -147,7 +147,7 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 			continue
 		}
 
-		episodeEntity.Translations = append(episodeEntity.Translations, translationEntity)
+		episodeEntity.Translations[translationEntity.Anime365ID] = translationEntity
 	}
 
 	if !anime365client.IsEmptyDateString(episodeDTO.FirstUploadedDateTime) {

@@ -8,6 +8,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/episodedownloader"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
+	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
@@ -22,6 +23,7 @@ var EpisodeDownloader = func(
 	embyService *emby.Service,
 	smartDownloader *downloader.SmartDownloader,
 	anime365Client *anime365client.Client,
+	notificationSender *notificationsender.Service,
 ) (*episodedownloader.Service, error) {
 	return episodedownloader.NewService(
 		myListService,
@@ -38,5 +40,6 @@ var EpisodeDownloader = func(
 		config.BlacklistedTranslationAuthors,
 		config.EpisodesToDownloadAhead,
 		config.DeleteRemovedTranslations,
+		notificationSender,
 	), nil
 }
