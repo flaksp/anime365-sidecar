@@ -144,6 +144,49 @@ func (s *Service) RefreshLibrary(ctx context.Context) error {
 	return s.embyClient.RefreshLibrary(ctx)
 }
 
+func (s *Service) DeleteTranslationIfNotPlaying(
+	ctx context.Context,
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+	translationID episode.Anime365TranslationID,
+) (bool, error) {
+	embyItemID, hasEmbyItemID := s.manifestService.GetTranslationEmbyItemID(
+		showID,
+		episodeID,
+		translationID,
+	)
+	if hasEmbyItemID {
+		sessions, err := s.embyClient.GetSessions(ctx)
+		if err != nil {
+			return false, fmt.Errorf("get active Emby sessions: %w", err)
+		}
+
+		if _, isPlaying := getPlayingItemIDs(sessions)[embyItemID]; isPlaying {
+			return false, nil
+		}
+	}
+
+	if err := s.DeleteTranslation(showID, episodeID, translationID); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func getPlayingItemIDs(sessions []embyclient.SessionSessionInfo) map[string]struct{} {
+	playingItemIDs := make(map[string]struct{})
+
+	for _, session := range sessions {
+		if session.NowPlayingItem == nil || session.NowPlayingItem.Id == "" {
+			continue
+		}
+
+		playingItemIDs[session.NowPlayingItem.Id] = struct{}{}
+	}
+
+	return playingItemIDs
+}
+
 func (s *Service) DeleteTranslation(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,

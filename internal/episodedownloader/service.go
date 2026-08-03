@@ -148,30 +148,52 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 		showEntity.Anime365ID,
 		episodeEntity.Anime365ID,
 	)
+
 	removedTranslationIDs := findRemovedTranslationIDs(
 		downloadedTranslationIDs,
 		availableTranslationIDs(episodeEntity.Translations),
 	)
+	if len(removedTranslationIDs) == 0 {
+		return nil
+	}
+
+	deletedAnyTranslation := false
 
 	for _, translationID := range removedTranslationIDs {
+		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
+			ctx,
+			showEntity.Anime365ID,
+			episodeEntity.Anime365ID,
+			translationID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to delete translation removed or hidden on anime 365: %w", err)
+		}
+
+		if !deleted {
+			s.logger.InfoContext(
+				ctx,
+				"Deferring deletion because translation is being watched in Emby",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+				slog.Int64("translation_id", int64(translationID)),
+			)
+
+			continue
+		}
+
 		s.logger.InfoContext(
 			ctx,
-			"Deleting translation removed or hidden on Anime 365",
+			"Deleted translation removed or hidden on Anime 365",
 			slog.Int64("show_id", int64(showEntity.Anime365ID)),
 			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 			slog.Int64("translation_id", int64(translationID)),
 		)
 
-		if err := s.embyService.DeleteTranslation(
-			showEntity.Anime365ID,
-			episodeEntity.Anime365ID,
-			translationID,
-		); err != nil {
-			return fmt.Errorf("failed to delete translation removed or hidden on anime 365: %w", err)
-		}
+		deletedAnyTranslation = true
 	}
 
-	if len(removedTranslationIDs) > 0 {
+	if deletedAnyTranslation {
 		if err := s.embyService.RefreshLibrary(ctx); err != nil {
 			s.logger.WarnContext(
 				ctx,
@@ -249,20 +271,34 @@ func (s *Service) downloadTranslation(
 			return nil
 		}
 
+		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
+			ctx,
+			showEntity.Anime365ID,
+			episodeEntity.Anime365ID,
+			translationEntity.Anime365ID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to delete translation: %w", err)
+		}
+
+		if !deleted {
+			s.logger.InfoContext(
+				ctx,
+				"Deferring quality upgrade because translation is being watched in Emby",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+				slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
+			)
+
+			return nil
+		}
+
 		s.logger.InfoContext(ctx,
-			"Deleting translation because of same translation with better quality found",
+			"Deleted translation because same translation with better quality was found",
 			slog.Int64("show_id", int64(showEntity.Anime365ID)),
 			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 			slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
 		)
-
-		if err := s.embyService.DeleteTranslation(
-			showEntity.Anime365ID,
-			episodeEntity.Anime365ID,
-			translationEntity.Anime365ID,
-		); err != nil {
-			return fmt.Errorf("failed to delete translation: %w", err)
-		}
 	}
 
 	videoTmpFile, err := os.CreateTemp(
