@@ -73,6 +73,7 @@ type Translation struct {
 	Authors          []string
 	Anime365ID       Anime365TranslationID
 	Anime365Priority int
+	IsVisible        bool
 }
 
 func NewTranslation(translationDTO anime365client.Translation) (Translation, error) {
@@ -80,6 +81,7 @@ func NewTranslation(translationDTO anime365client.Translation) (Translation, err
 		Anime365ID:       Anime365TranslationID(translationDTO.ID),
 		Authors:          translationDTO.AuthorsList,
 		Anime365Priority: translationDTO.Priority,
+		IsVisible:        translationDTO.IsActive != 0,
 	}
 
 	switch translationDTO.TypeKind {
@@ -135,7 +137,9 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 		episodeEntity.EpisodeNumber = episodeNumber
 	}
 
-	episodeEntity.Translations = make([]Translation, 0, len(episodeDTO.Translations))
+	if episodeDTO.Translations != nil {
+		episodeEntity.Translations = make([]Translation, 0, len(episodeDTO.Translations))
+	}
 
 	for _, translationDTO := range episodeDTO.Translations {
 		translationEntity, err := NewTranslation(translationDTO)

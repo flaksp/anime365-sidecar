@@ -14,16 +14,16 @@ type Env struct {
 	AnilistAPIBaseURL                     *url.URL      `env:"SIDECAR_ANILIST_API_BASE_URL,required,notEmpty"                       envDefault:"https://graphql.anilist.co"`
 	TelegramBotAPICredentials             *url.URL      `env:"SIDECAR_TELEGRAM_BOT_API_CREDENTIALS"`
 	EmbyPublicBaseURL                     *url.URL      `env:"SIDECAR_EMBY_PUBLIC_BASE_URL"`
-	LibraryDirectory                      string        `env:"SIDECAR_LIBRARY_DIRECTORY,required,notEmpty"`
+	EmbyAPIKey                            string        `env:"SIDECAR_EMBY_API_KEY,required,notEmpty"`
 	EmbyLibraryID                         string        `env:"SIDECAR_EMBY_LIBRARY_ID,required,notEmpty"`
 	EmbyUserID                            string        `env:"SIDECAR_EMBY_USER_ID,required,notEmpty"`
 	Anime365Password                      string        `env:"SIDECAR_ANIME365_PASSWORD,required,notEmpty"`
 	Anime365Login                         string        `env:"SIDECAR_ANIME365_LOGIN,required,notEmpty"`
-	EmbyAPIKey                            string        `env:"SIDECAR_EMBY_API_KEY,required,notEmpty"`
+	LibraryDirectory                      string        `env:"SIDECAR_LIBRARY_DIRECTORY,required,notEmpty"`
 	TemporaryDirectory                    string        `env:"SIDECAR_TEMPORARY_DIRECTORY"`
-	ScanSources                           []string      `env:"SIDECAR_SCAN_SOURCES,required,notEmpty"                               envDefault:"list_watching"`
-	Translations                          []string      `env:"SIDECAR_TRANSLATIONS,required,notEmpty"                               envDefault:"ru_subtitles,ru_dub"`
 	PreferredTranslationAuthors           []string      `env:"SIDECAR_PREFERRED_TRANSLATION_AUTHORS"`
+	Translations                          []string      `env:"SIDECAR_TRANSLATIONS,required,notEmpty"                               envDefault:"ru_subtitles,ru_dub"`
+	ScanSources                           []string      `env:"SIDECAR_SCAN_SOURCES,required,notEmpty"                               envDefault:"list_watching"`
 	BlacklistedTranslationAuthors         []string      `env:"SIDECAR_BLACKLISTED_TRANSLATION_AUTHORS"`
 	DownloadTimeoutVideo                  time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_VIDEO,required,notEmpty"                     envDefault:"1h"`
 	ScanIdleInterval                      time.Duration `env:"SIDECAR_SCAN_IDLE_INTERVAL,required,notEmpty"                         envDefault:"5m"`
@@ -32,4 +32,5 @@ type Env struct {
 	LogLevel                              slog.Level    `env:"SIDECAR_LOG_LEVEL,required,notEmpty"                                  envDefault:"INFO"`
 	DownloadTimeoutImage                  time.Duration `env:"SIDECAR_DOWNLOAD_TIMEOUT_IMAGE,required,notEmpty"                     envDefault:"1m"`
 	EpisodesToDownloadAhead               uint32        `env:"SIDECAR_EPISODES_TO_DOWNLOAD_AHEAD,required,notEmpty"                 envDefault:"50"`
+	DeleteRemovedTranslations             bool          `env:"SIDECAR_DELETE_REMOVED_TRANSLATIONS"                                  envDefault:"false"`
 }

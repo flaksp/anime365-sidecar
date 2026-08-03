@@ -37,5 +37,6 @@ var EpisodeDownloader = func(
 		config.PreferredTranslationAuthors,
 		config.BlacklistedTranslationAuthors,
 		config.EpisodesToDownloadAhead,
+		config.DeleteRemovedTranslations,
 	), nil
 }

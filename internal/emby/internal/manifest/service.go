@@ -197,6 +197,39 @@ func (s *Service) GetTranslationQuality(
 	return translationEntry.Height, true
 }
 
+func (s *Service) GetTranslationIDs(
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+) map[episode.Anime365TranslationID]struct{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	showIDStr := strconv.FormatInt(int64(showID), 10)
+	episodeIDStr := strconv.FormatInt(int64(episodeID), 10)
+
+	showEntry, exists := s.inMemoryManifest.Shows[showIDStr]
+	if !exists {
+		return nil
+	}
+
+	episodeEntry, exists := showEntry.Episodes[episodeIDStr]
+	if !exists {
+		return nil
+	}
+
+	translationIDs := make(map[episode.Anime365TranslationID]struct{}, len(episodeEntry.Translations))
+	for translationIDStr := range episodeEntry.Translations {
+		translationID, err := strconv.ParseInt(translationIDStr, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		translationIDs[episode.Anime365TranslationID(translationID)] = struct{}{}
+	}
+
+	return translationIDs
+}
+
 func (s *Service) SetTranslationEntry(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,

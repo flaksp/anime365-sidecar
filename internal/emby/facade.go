@@ -133,6 +133,17 @@ func (s *Service) GetTranslationQuality(
 	)
 }
 
+func (s *Service) GetTranslationIDs(
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+) map[episode.Anime365TranslationID]struct{} {
+	return s.manifestService.GetTranslationIDs(showID, episodeID)
+}
+
+func (s *Service) RefreshLibrary(ctx context.Context) error {
+	return s.embyClient.RefreshLibrary(ctx)
+}
+
 func (s *Service) DeleteTranslation(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ func NewService(
 	preferredTranslationAuthors []string,
 	blacklistedTranslationAuthors []string,
 	episodesToDownloadAhead uint32,
+	deleteRemovedTranslations bool,
 ) *Service {
 	return &Service{
 		myListService:                 myListService,
@@ -48,6 +50,7 @@ func NewService(
 		preferredTranslationAuthors:   parseTranslationAuthors(preferredTranslationAuthors),
 		blacklistedTranslationAuthors: parseTranslationAuthors(blacklistedTranslationAuthors),
 		episodesToDownloadAhead:       episodesToDownloadAhead,
+		deleteRemovedTranslations:     deleteRemovedTranslations,
 	}
 }
 
@@ -65,6 +68,7 @@ type Service struct {
 	temporaryDirectory            string
 	downloadVideoTimeout          time.Duration
 	episodesToDownloadAhead       uint32
+	deleteRemovedTranslations     bool
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
@@ -107,6 +111,12 @@ func (s *Service) DownloadEpisode(
 		return fmt.Errorf("could not get episode entity: %w", err)
 	}
 
+	if s.deleteRemovedTranslations {
+		if err := s.deleteTranslationsRemovedFromAnime365(ctx, showEntity, episodeEntity); err != nil {
+			return err
+		}
+	}
+
 	for _, translationEntity := range episodeEntity.Translations {
 		if !s.shouldDownloadTranslation(translationEntity, episodeEntity.Translations) {
 			continue
@@ -127,6 +137,93 @@ func (s *Service) DownloadEpisode(
 	}
 
 	return nil
+}
+
+func (s *Service) deleteTranslationsRemovedFromAnime365(
+	ctx context.Context,
+	showEntity show.Show,
+	episodeEntity episode.Episode,
+) error {
+	downloadedTranslationIDs := s.embyService.GetTranslationIDs(
+		showEntity.Anime365ID,
+		episodeEntity.Anime365ID,
+	)
+	removedTranslationIDs := findRemovedTranslationIDs(
+		downloadedTranslationIDs,
+		availableTranslationIDs(episodeEntity.Translations),
+	)
+
+	for _, translationID := range removedTranslationIDs {
+		s.logger.InfoContext(
+			ctx,
+			"Deleting translation removed or hidden on Anime 365",
+			slog.Int64("show_id", int64(showEntity.Anime365ID)),
+			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
+			slog.Int64("translation_id", int64(translationID)),
+		)
+
+		if err := s.embyService.DeleteTranslation(
+			showEntity.Anime365ID,
+			episodeEntity.Anime365ID,
+			translationID,
+		); err != nil {
+			return fmt.Errorf("failed to delete translation removed or hidden on anime 365: %w", err)
+		}
+	}
+
+	if len(removedTranslationIDs) > 0 {
+		if err := s.embyService.RefreshLibrary(ctx); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to refresh Emby library after deleting removed translations",
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	return nil
+}
+
+func availableTranslationIDs(
+	translations []episode.Translation,
+) map[episode.Anime365TranslationID]struct{} {
+	if translations == nil {
+		return nil
+	}
+
+	translationIDs := make(map[episode.Anime365TranslationID]struct{}, len(translations))
+	for _, translationEntity := range translations {
+		if !translationEntity.IsVisible {
+			continue
+		}
+
+		translationIDs[translationEntity.Anime365ID] = struct{}{}
+	}
+
+	return translationIDs
+}
+
+func findRemovedTranslationIDs(
+	downloadedTranslationIDs map[episode.Anime365TranslationID]struct{},
+	availableTranslationIDs map[episode.Anime365TranslationID]struct{},
+) []episode.Anime365TranslationID {
+	// A nil collection means Anime 365 did not provide translation availability,
+	// so it is not safe to infer that every downloaded translation was removed.
+	if availableTranslationIDs == nil {
+		return nil
+	}
+
+	removedTranslationIDs := make([]episode.Anime365TranslationID, 0)
+
+	for translationID := range downloadedTranslationIDs {
+		if _, exists := availableTranslationIDs[translationID]; !exists {
+			removedTranslationIDs = append(removedTranslationIDs, translationID)
+		}
+	}
+
+	slices.Sort(removedTranslationIDs)
+
+	return removedTranslationIDs
 }
 
 func (s *Service) downloadTranslation(
@@ -326,6 +423,10 @@ func (s *Service) shouldDownloadTranslation(
 	translationEntity episode.Translation,
 	otherTranslationEntities []episode.Translation,
 ) bool {
+	if !translationEntity.IsVisible {
+		return false
+	}
+
 	if _, ok := s.translationVariantsToDownload[translationEntity.Variant]; !ok {
 		return false
 	}
@@ -348,6 +449,10 @@ func (s *Service) shouldDownloadTranslation(
 
 	for _, otherTranslationEntity := range otherTranslationEntities {
 		if otherTranslationEntity.Anime365ID == translationEntity.Anime365ID {
+			continue
+		}
+
+		if !otherTranslationEntity.IsVisible {
 			continue
 		}
 
