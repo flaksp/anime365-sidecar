@@ -31,13 +31,9 @@ func NewService(
 	downloadVideoTimeout time.Duration,
 	temporaryDirectory string,
 	preferredTranslationAuthors []string,
+	blacklistedTranslationAuthors []string,
 	episodesToDownloadAhead uint32,
 ) *Service {
-	preferredTranslationAuthorsMap := make(map[string]struct{}, len(preferredTranslationAuthors))
-	for _, preferredTranslationAuthor := range preferredTranslationAuthors {
-		preferredTranslationAuthorsMap[strings.ToLower(preferredTranslationAuthor)] = struct{}{}
-	}
-
 	return &Service{
 		myListService:                 myListService,
 		scanSource:                    scanSource,
@@ -49,7 +45,8 @@ func NewService(
 		translationVariantsToDownload: parseTranslationVariants(translations, logger),
 		downloadVideoTimeout:          downloadVideoTimeout,
 		temporaryDirectory:            temporaryDirectory,
-		preferredTranslationAuthors:   preferredTranslationAuthorsMap,
+		preferredTranslationAuthors:   parseTranslationAuthors(preferredTranslationAuthors),
+		blacklistedTranslationAuthors: parseTranslationAuthors(blacklistedTranslationAuthors),
 		episodesToDownloadAhead:       episodesToDownloadAhead,
 	}
 }
@@ -64,6 +61,7 @@ type Service struct {
 	anime365Client                *anime365client.Client
 	translationVariantsToDownload map[episode.TranslationVariant]struct{}
 	preferredTranslationAuthors   map[string]struct{}
+	blacklistedTranslationAuthors map[string]struct{}
 	temporaryDirectory            string
 	downloadVideoTimeout          time.Duration
 	episodesToDownloadAhead       uint32
@@ -311,6 +309,19 @@ func parseTranslationVariants(translations []string, logger *slog.Logger) map[ep
 	return translationVariants
 }
 
+func parseTranslationAuthors(authors []string) map[string]struct{} {
+	parsedAuthors := make(map[string]struct{}, len(authors))
+
+	for _, author := range authors {
+		author = strings.ToLower(strings.TrimSpace(author))
+		if author != "" {
+			parsedAuthors[author] = struct{}{}
+		}
+	}
+
+	return parsedAuthors
+}
+
 func (s *Service) shouldDownloadTranslation(
 	translationEntity episode.Translation,
 	otherTranslationEntities []episode.Translation,
@@ -319,12 +330,16 @@ func (s *Service) shouldDownloadTranslation(
 		return false
 	}
 
-	// download everything if no preferences specified
+	if s.translationHasBlacklistedAuthor(translationEntity) {
+		return false
+	}
+
+	// Download every eligible translation if no preferences are specified.
 	if len(s.preferredTranslationAuthors) == 0 {
 		return true
 	}
 
-	// download if this is preferred translation
+	// Download this translation if it is preferred.
 	if s.translationHasPreferredAuthor(translationEntity) {
 		return true
 	}
@@ -340,6 +355,10 @@ func (s *Service) shouldDownloadTranslation(
 			continue
 		}
 
+		if s.translationHasBlacklistedAuthor(otherTranslationEntity) {
+			continue
+		}
+
 		if s.translationHasPreferredAuthor(otherTranslationEntity) {
 			foundPreferredInOtherTranslations = true
 
@@ -347,20 +366,29 @@ func (s *Service) shouldDownloadTranslation(
 		}
 	}
 
-	// download everything if all available translations are not preferred
+	// Download every eligible translation if no preferred translation is available.
 	return !foundPreferredInOtherTranslations
 }
 
 func (s *Service) translationHasPreferredAuthor(
 	translationEntity episode.Translation,
 ) bool {
-	translationAuthorsMap := make(map[string]struct{}, len(translationEntity.Authors))
-	for _, author := range translationEntity.Authors {
-		translationAuthorsMap[strings.ToLower(author)] = struct{}{}
-	}
+	return translationHasAuthorFrom(translationEntity, s.preferredTranslationAuthors)
+}
 
-	for preferredTranslationAuthor := range s.preferredTranslationAuthors {
-		if _, ok := translationAuthorsMap[preferredTranslationAuthor]; ok {
+func (s *Service) translationHasBlacklistedAuthor(
+	translationEntity episode.Translation,
+) bool {
+	return translationHasAuthorFrom(translationEntity, s.blacklistedTranslationAuthors)
+}
+
+func translationHasAuthorFrom(
+	translationEntity episode.Translation,
+	authors map[string]struct{},
+) bool {
+	for _, author := range translationEntity.Authors {
+		author = strings.ToLower(strings.TrimSpace(author))
+		if _, ok := authors[author]; ok {
 			return true
 		}
 	}
