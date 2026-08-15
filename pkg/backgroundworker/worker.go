@@ -10,11 +10,20 @@ import (
 
 type Job func(ctx context.Context) error
 
+type Option func(worker *Worker)
+
 type Worker struct {
-	job      Job
-	logger   *slog.Logger
-	name     string
-	interval time.Duration
+	job          Job
+	logger       *slog.Logger
+	name         string
+	interval     time.Duration
+	skipFirstRun bool
+}
+
+func WithSkipFirstRun() Option {
+	return func(worker *Worker) {
+		worker.skipFirstRun = true
+	}
 }
 
 func New(
@@ -22,13 +31,20 @@ func New(
 	interval time.Duration,
 	job Job,
 	logger *slog.Logger,
+	options ...Option,
 ) *Worker {
-	return &Worker{
+	worker := &Worker{
 		name:     name,
 		interval: interval,
 		job:      job,
 		logger:   logger,
 	}
+
+	for _, option := range options {
+		option(worker)
+	}
+
+	return worker
 }
 
 func (w *Worker) Register(lc fx.Lifecycle) {
@@ -52,6 +68,10 @@ func (w *Worker) Register(lc fx.Lifecycle) {
 }
 
 func (w *Worker) loop(ctx context.Context) {
+	if w.skipFirstRun && !w.waitForNextRun(ctx) {
+		return
+	}
+
 	for {
 		w.logger.InfoContext(ctx, "Worker started", slog.String("name", w.name))
 
@@ -64,13 +84,22 @@ func (w *Worker) loop(ctx context.Context) {
 			w.logger.InfoContext(ctx, "Worker finished", slog.String("name", w.name))
 		}
 
-		select {
-		case <-time.After(w.interval):
-			continue
-		case <-ctx.Done():
-			w.logger.InfoContext(ctx, "Worker context cancelled", slog.String("name", w.name))
-
+		if !w.waitForNextRun(ctx) {
 			return
 		}
+	}
+}
+
+func (w *Worker) waitForNextRun(ctx context.Context) bool {
+	timer := time.NewTimer(w.interval)
+	defer timer.Stop()
+
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		w.logger.InfoContext(ctx, "Worker context cancelled", slog.String("name", w.name))
+
+		return false
 	}
 }
