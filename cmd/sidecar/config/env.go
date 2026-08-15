@@ -11,7 +11,6 @@ type Env struct {
 	EmbyBaseURL                           *url.URL      `env:"SIDECAR_EMBY_BASE_URL,required,notEmpty"`
 	ShikimoriBaseURL                      *url.URL      `env:"SIDECAR_SHIKIMORI_BASE_URL,required,notEmpty"                         envDefault:"https://shikimori.io"`
 	JikanAPIBaseURL                       *url.URL      `env:"SIDECAR_JIKAN_API_BASE_URL,required,notEmpty"                         envDefault:"https://api.jikan.moe"`
-	AnilistAPIBaseURL                     *url.URL      `env:"SIDECAR_ANILIST_API_BASE_URL,required,notEmpty"                       envDefault:"https://graphql.anilist.co"`
 	AnimeListDatabaseURL                  *url.URL      `env:"SIDECAR_ANIME_LIST_DATABASE_URL,required,notEmpty"                    envDefault:"https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-full.json"`
 	TelegramBotAPICredentials             *url.URL      `env:"SIDECAR_TELEGRAM_BOT_API_CREDENTIALS"`
 	EmbyPublicBaseURL                     *url.URL      `env:"SIDECAR_EMBY_PUBLIC_BASE_URL"`
