@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -33,14 +34,16 @@ func NewService(
 	logger *slog.Logger,
 	embyClient *embyclient.Client,
 	embyPublicURL *url.URL,
+	animeMappingService *animemapping.Service,
 ) *Service {
 	return &Service{
-		logger:             logger,
-		manifestService:    manifest.NewService(downloadsDirectory, logger),
-		embyClient:         embyClient,
-		downloadsDirectory: downloadsDirectory,
-		embyUserID:         embyUserID,
-		embyPublicURL:      embyPublicURL,
+		logger:              logger,
+		manifestService:     manifest.NewService(downloadsDirectory, logger),
+		embyClient:          embyClient,
+		downloadsDirectory:  downloadsDirectory,
+		embyUserID:          embyUserID,
+		embyPublicURL:       embyPublicURL,
+		animeMappingService: animeMappingService,
 	}
 }
 
@@ -49,6 +52,7 @@ type Service struct {
 	manifestService          *manifest.Service
 	embyClient               *embyclient.Client
 	embyPublicURL            *url.URL
+	animeMappingService      *animemapping.Service
 	downloadsDirectory       string
 	embyLibraryItemID        string
 	embyLibraryRootDirectory string
@@ -421,6 +425,8 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 		}
 	}
 
+	s.applyAnimeMappingExternalIDs(&embyItem, showFromAnime365.MyAnimeListID)
+
 	embyItem.DisplayOrder = "absolute"
 
 	embyItem.LockData = true
@@ -555,6 +561,10 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 
 	if embyItem.Status != newStatus {
 		embyItem.Status = newStatus
+		needUpdate = true
+	}
+
+	if s.applyAnimeMappingExternalIDs(&embyItem, showFromAnime365.MyAnimeListID) {
 		needUpdate = true
 	}
 
