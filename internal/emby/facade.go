@@ -357,6 +357,21 @@ func (s *Service) SaveTranslationPaths(
 
 var oneOrMoreLineBreaksRegexp = regexp.MustCompile(`\n+`)
 
+var showLockedFields = []embyclient.MetadataFields{
+	embyclient.NAME_MetadataFields,
+	embyclient.ORIGINAL_TITLE_MetadataFields,
+	embyclient.COMMUNITY_RATING_MetadataFields,
+	embyclient.OVERVIEW_MetadataFields,
+	embyclient.GENRES_MetadataFields,
+	embyclient.SORT_NAME_MetadataFields,
+	embyclient.STUDIOS_MetadataFields,
+	embyclient.RUNTIME_MetadataFields,
+	embyclient.OFFICIAL_RATING_MetadataFields,
+	embyclient.CAST_MetadataFields,
+	embyclient.TAGLINE_MetadataFields,
+	embyclient.TAGS_MetadataFields,
+}
+
 // InitialUpdateShowMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
 // If item not found in Emby library error ErrEmbyItemNotFound returned.
 // If entry not found in manifest error ErrShowNotFoundInManifest returned.
@@ -429,24 +444,15 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 
 	embyItem.DisplayOrder = "absolute"
 
-	embyItem.LockData = true
-
-	embyItem.LockedFields = []embyclient.MetadataFields{
-		embyclient.NAME_MetadataFields,
-		embyclient.ORIGINAL_TITLE_MetadataFields,
-		embyclient.COMMUNITY_RATING_MetadataFields,
-		embyclient.OVERVIEW_MetadataFields,
-		embyclient.GENRES_MetadataFields,
-		embyclient.SORT_NAME_MetadataFields,
-		embyclient.STUDIOS_MetadataFields,
-		embyclient.OFFICIAL_RATING_MetadataFields,
-		embyclient.CAST_MetadataFields,
-		embyclient.TAGLINE_MetadataFields,
-		embyclient.TAGS_MetadataFields,
-	}
+	// Keep sidecar-owned textual metadata protected with field locks.
+	embyItem.LockedFields = showLockedFields
 
 	if err := s.updateItem(ctx, embyItem); err != nil {
 		return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
+	}
+
+	if err := s.embyClient.RefreshItemImages(ctx, embyItem.Id); err != nil {
+		return fmt.Errorf("failed to refresh missing images for show item %s: %w", embyItem.Id, err)
 	}
 
 	if err := s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, embyItem.Id); err != nil {
@@ -568,7 +574,8 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 		needUpdate = true
 	}
 
-	embyItem.LockData = true
+	// Keep sidecar-owned textual metadata protected with field locks.
+	embyItem.LockedFields = showLockedFields
 
 	if needUpdate {
 		if err := s.updateItem(ctx, embyItem); err != nil {
@@ -697,7 +704,8 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 		needUpdate = true
 	}
 
-	embyItem.LockData = true
+	// Keep sidecar-owned textual metadata protected with field locks.
+	embyItem.LockedFields = showLockedFields
 
 	if needUpdate {
 		if err := s.updateItem(ctx, embyItem); err != nil {
