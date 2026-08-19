@@ -5,12 +5,11 @@ type Series struct {
 		Romaji string `json:"romaji"`
 		Ru     string `json:"ru"`
 	} `json:"titles"`
-	MyAnimeListScore string `json:"myAnimeListScore"`
-	PosterURL        string `json:"posterUrl"`
-	Season           string `json:"season"`
-	TypeTitle        string `json:"typeTitle"`
-	URL              string `json:"url"`
-	Genres           []struct {
+	URL       string `json:"url"`
+	PosterURL string `json:"posterUrl"`
+	Season    string `json:"season"`
+	TypeTitle string `json:"typeTitle"`
+	Genres    []struct {
 		Title string `json:"title"`
 	} `json:"genres"`
 	Descriptions []struct {
@@ -26,11 +25,12 @@ type Series struct {
 		Title string `json:"title"`
 		URL   string `json:"url"`
 	}
-	ID               int64 `json:"id"`
-	Year             int   `json:"year"`
-	IsAiring         int   `json:"isAiring"`
-	MyAnimeListID    int64 `json:"myAnimeListId"`
-	NumberOfEpisodes int64 `json:"numberOfEpisodes"`
+	MyAnimeListScore float64 `json:"myAnimeListScore"`
+	ID               int64   `json:"id"`
+	Year             int     `json:"year"`
+	IsAiring         int     `json:"isAiring"`
+	MyAnimeListID    int64   `json:"myAnimeListId"`
+	NumberOfEpisodes int64   `json:"numberOfEpisodes"`
 }
 
 const (

@@ -68,8 +68,8 @@ func NewShow(series anime365client.Series) (Show, error) {
 
 	showEntity.Anime365URL = anime365URL
 
-	if myAnimeListScore, err := strconv.ParseFloat(series.MyAnimeListScore, 64); err == nil && myAnimeListScore > 0 {
-		showEntity.MyAnimeListScore = myAnimeListScore
+	if series.MyAnimeListScore > 0 {
+		showEntity.MyAnimeListScore = series.MyAnimeListScore
 	}
 
 	showEntity.EpisodePreviews = make([]EpisodePreview, 0, len(series.Episodes))
