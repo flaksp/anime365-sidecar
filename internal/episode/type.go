@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -130,11 +129,10 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 		EpisodeLabel: strings.TrimSpace(episodeDTO.EpisodeFull),
 	}
 
-	episodeNumber, err := strconv.ParseInt(episodeDTO.EpisodeInt, 10, 64)
-	if err != nil || episodeNumber <= 0 {
+	if episodeDTO.EpisodeInt <= 0 {
 		episodeEntity.IsSpecial = true
 	} else {
-		episodeEntity.EpisodeNumber = episodeNumber
+		episodeEntity.EpisodeNumber = episodeDTO.EpisodeInt
 	}
 
 	if episodeDTO.Translations != nil {

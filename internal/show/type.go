@@ -3,7 +3,6 @@ package show
 import (
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -111,11 +110,10 @@ func NewShow(series anime365client.Series) (Show, error) {
 			IsTrailer:  episodeDTO.EpisodeType == "preview",
 		}
 
-		episodeNumber, err := strconv.ParseInt(episodeDTO.EpisodeInt, 10, 64)
-		if err != nil || episodeNumber <= 0 {
+		if episodeDTO.EpisodeInt <= 0 {
 			preview.IsSpecial = true
 		} else {
-			preview.EpisodeNumber = episodeNumber
+			preview.EpisodeNumber = episodeDTO.EpisodeInt
 		}
 
 		showEntity.EpisodePreviews = append(showEntity.EpisodePreviews, preview)
