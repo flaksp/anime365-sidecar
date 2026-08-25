@@ -17,9 +17,9 @@ type Series struct {
 		Value  string `json:"value"`
 	} `json:"descriptions"`
 	Episodes []struct {
-		EpisodeType string `json:"episodeType"`
-		EpisodeInt  int64  `json:"episodeInt"`
-		ID          int64  `json:"id"`
+		EpisodeType string  `json:"episodeType"`
+		EpisodeInt  float64 `json:"episodeInt"`
+		ID          int64   `json:"id"`
 	} `json:"episodes"`
 	Links []struct {
 		Title string `json:"title"`
@@ -44,7 +44,7 @@ type Episode struct {
 	EpisodeType           string        `json:"episodeType"`
 	FirstUploadedDateTime string        `json:"firstUploadedDateTime"`
 	Translations          []Translation `json:"translations"`
-	EpisodeInt            int64         `json:"episodeInt"`
+	EpisodeInt            float64       `json:"episodeInt"`
 	ID                    int64         `json:"id"`
 }
 

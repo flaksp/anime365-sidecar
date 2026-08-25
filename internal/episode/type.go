@@ -3,6 +3,7 @@ package episode
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -129,10 +130,11 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 		EpisodeLabel: strings.TrimSpace(episodeDTO.EpisodeFull),
 	}
 
-	if episodeDTO.EpisodeInt <= 0 {
+	episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)
+	if fractionalPart != 0 || episodeNumber <= 0 {
 		episodeEntity.IsSpecial = true
 	} else {
-		episodeEntity.EpisodeNumber = episodeDTO.EpisodeInt
+		episodeEntity.EpisodeNumber = int64(episodeNumber)
 	}
 
 	if episodeDTO.Translations != nil {

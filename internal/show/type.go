@@ -2,6 +2,7 @@ package show
 
 import (
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 
@@ -110,10 +111,11 @@ func NewShow(series anime365client.Series) (Show, error) {
 			IsTrailer:  episodeDTO.EpisodeType == "preview",
 		}
 
-		if episodeDTO.EpisodeInt <= 0 {
+		episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)
+		if fractionalPart != 0 || episodeNumber <= 0 {
 			preview.IsSpecial = true
 		} else {
-			preview.EpisodeNumber = episodeDTO.EpisodeInt
+			preview.EpisodeNumber = int64(episodeNumber)
 		}
 
 		showEntity.EpisodePreviews = append(showEntity.EpisodePreviews, preview)
