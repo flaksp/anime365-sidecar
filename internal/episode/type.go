@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
-	"github.com/flaksp/anime365-sidecar/pkg/jikanclient"
 	"golang.org/x/text/language"
 )
 
@@ -202,39 +201,4 @@ func NewTranslationMedia(
 	}
 
 	return translationMediaEntity, nil
-}
-
-func NewEpisodeMetadataFromJikan(dto jikanclient.AnimeEpisode, score float64) (MetadataFromJikan, error) {
-	res := MetadataFromJikan{
-		Title:            strings.TrimSpace(dto.Title),
-		IsFiller:         dto.Filler,
-		IsRecap:          dto.Recap,
-		MyAnimeListScore: score,
-	}
-
-	if dto.Synopsis != nil {
-		res.Description = *dto.Synopsis
-	}
-
-	if dto.Aired != nil {
-		layout := "2006-01-02T15:04:05-07:00"
-
-		airedAt, err := time.Parse(layout, *dto.Aired)
-		if err != nil {
-			return MetadataFromJikan{}, fmt.Errorf("invalid aired date: %w", err)
-		}
-
-		res.AiredAt = airedAt
-	}
-
-	return res, nil
-}
-
-type MetadataFromJikan struct {
-	AiredAt          time.Time
-	Title            string
-	Description      string
-	IsFiller         bool
-	IsRecap          bool
-	MyAnimeListScore float64
 }

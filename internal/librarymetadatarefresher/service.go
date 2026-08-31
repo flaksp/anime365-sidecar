@@ -2,7 +2,6 @@ package librarymetadatarefresher
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -250,36 +249,6 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 				continue
 			}
 
-			var episodeMetadataFromJikan episode.MetadataFromJikan
-
-			if episodeEntity.EpisodeNumber > 0 {
-				episodeMetadataFromJikan, err = s.episodeService.GetEpisodeMetadataFromJikan(
-					ctx,
-					int64(showEntity.MyAnimeListID),
-					episodeEntity.EpisodeNumber,
-				)
-				if errors.Is(err, episode.ErrJikanEpisodeNotFound) {
-					s.logger.DebugContext(
-						ctx,
-						"Episode not found on Jikan, all translations will be updated without this metadata",
-						slog.Int64("show_id", int64(showEntity.Anime365ID)),
-						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
-						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-						slog.Int64("episode_number", episodeEntity.EpisodeNumber),
-					)
-				} else if err != nil {
-					s.logger.WarnContext(
-						ctx,
-						"Failed to get episode metadata from Jikan, all translations will be updated without this metadata",
-						slog.Int64("show_id", int64(showEntity.Anime365ID)),
-						slog.Int64("show_my_anime_list_id", int64(showEntity.MyAnimeListID)),
-						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-						slog.Int64("episode_number", episodeEntity.EpisodeNumber),
-						slog.String("error", err.Error()),
-					)
-				}
-			}
-
 			for translationID := range items {
 				translationEntity, err := s.episodeService.GetTranslation(ctx, translationID)
 				if err != nil {
@@ -309,27 +278,6 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 					)
 
 					continue
-				}
-
-				if episodeMetadataFromJikan.Title != "" {
-					if err := s.embyService.UpdateTranslationMetadataWithJikanMetadata(
-						ctx,
-						showID,
-						episodeID,
-						translationEntity.Anime365ID,
-						episodeMetadataFromJikan,
-					); err != nil {
-						s.logger.ErrorContext(
-							ctx,
-							"Failed to update translation in Emby with Jikan metadata, it was not updated",
-							slog.Int64("show_id", int64(showEntity.Anime365ID)),
-							slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-							slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
-							slog.String("error", err.Error()),
-						)
-
-						continue
-					}
 				}
 			}
 		}
