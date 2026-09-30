@@ -81,7 +81,7 @@ func NewTranslation(translationDTO anime365client.Translation) (Translation, err
 		Anime365ID:       Anime365TranslationID(translationDTO.ID),
 		Authors:          translationDTO.AuthorsList,
 		Anime365Priority: translationDTO.Priority,
-		IsVisible:        translationDTO.IsActive != 0,
+		IsVisible:        translationDTO.IsActive > 0,
 	}
 
 	switch translationDTO.TypeKind {
@@ -128,7 +128,7 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 		Anime365ID:    Anime365EpisodeID(episodeDTO.ID),
 		IsTrailer:     episodeDTO.EpisodeType == "preview",
 		EpisodeLabel:  strings.TrimSpace(episodeDTO.EpisodeFull),
-		IsUnavailable: episodeDTO.IsActive == 0,
+		IsUnavailable: episodeDTO.IsActive > 0,
 	}
 
 	episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)
