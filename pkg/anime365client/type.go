@@ -44,6 +44,7 @@ type Episode struct {
 	EpisodeType           string        `json:"episodeType"`
 	FirstUploadedDateTime string        `json:"firstUploadedDateTime"`
 	Translations          []Translation `json:"translations"`
+	IsActive              int           `json:"isActive"`
 	EpisodeInt            float64       `json:"episodeInt"`
 	ID                    int64         `json:"id"`
 }

@@ -25,6 +25,7 @@ type Episode struct {
 	EpisodeNumber   int64
 	IsTrailer       bool
 	IsSpecial       bool
+	IsUnavailable   bool
 }
 
 const (
@@ -124,9 +125,10 @@ var ErrNormalizingEpisodeEntity = errors.New("normalizing episode entity")
 
 func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 	episodeEntity := Episode{
-		Anime365ID:   Anime365EpisodeID(episodeDTO.ID),
-		IsTrailer:    episodeDTO.EpisodeType == "preview",
-		EpisodeLabel: strings.TrimSpace(episodeDTO.EpisodeFull),
+		Anime365ID:    Anime365EpisodeID(episodeDTO.ID),
+		IsTrailer:     episodeDTO.EpisodeType == "preview",
+		EpisodeLabel:  strings.TrimSpace(episodeDTO.EpisodeFull),
+		IsUnavailable: episodeDTO.IsActive == 0,
 	}
 
 	episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)

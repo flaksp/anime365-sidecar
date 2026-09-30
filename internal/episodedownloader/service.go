@@ -121,6 +121,10 @@ func (s *Service) DownloadEpisode(
 		}
 	}
 
+	if episodeEntity.IsUnavailable {
+		return nil
+	}
+
 	for _, translationEntity := range episodeEntity.Translations {
 		if !s.shouldDownloadTranslation(translationEntity, episodeEntity.Translations) {
 			continue
@@ -153,9 +157,16 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 		episodeEntity.Anime365ID,
 	)
 
+	availableIDs := availableTranslationIDs(episodeEntity.Translations)
+	if episodeEntity.IsUnavailable {
+		// An explicitly inactive episode makes all translations unavailable,
+		// even when the API omits the translations collection.
+		availableIDs = make(map[episode.Anime365TranslationID]struct{})
+	}
+
 	removedTranslationIDs := findRemovedTranslationIDs(
 		downloadedTranslationIDs,
-		availableTranslationIDs(episodeEntity.Translations),
+		availableIDs,
 	)
 	if len(removedTranslationIDs) == 0 {
 		return nil
@@ -171,7 +182,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 			translationID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to delete translation removed or hidden on anime 365: %w", err)
+			return fmt.Errorf("failed to delete translation or episode removed or hidden on anime 365: %w", err)
 		}
 
 		if !deleted {
@@ -188,7 +199,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 
 		s.logger.InfoContext(
 			ctx,
-			"Deleted translation removed or hidden on Anime 365",
+			"Deleted translation because it or its episode was removed or hidden on Anime 365",
 			slog.Int64("show_id", int64(showEntity.Anime365ID)),
 			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 			slog.Int64("translation_id", int64(translationID)),
