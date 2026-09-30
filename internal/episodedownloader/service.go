@@ -344,7 +344,7 @@ func (s *Service) shouldDownloadTranslation(
 	translationEntity episode.Translation,
 	otherTranslationEntities map[episode.Anime365TranslationID]episode.Translation,
 ) bool {
-	if !translationEntity.IsVisible {
+	if translationEntity.IsUnavailable {
 		return false
 	}
 
@@ -373,7 +373,7 @@ func (s *Service) shouldDownloadTranslation(
 			continue
 		}
 
-		if !otherTranslationEntity.IsVisible {
+		if otherTranslationEntity.IsUnavailable {
 			continue
 		}
 

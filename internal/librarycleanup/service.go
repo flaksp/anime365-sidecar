@@ -180,7 +180,7 @@ func availableTranslationIDs(
 
 	translationIDs := make(map[episode.Anime365TranslationID]struct{}, len(translations))
 	for translationID, translationEntity := range translations {
-		if !translationEntity.IsVisible {
+		if translationEntity.IsUnavailable {
 			continue
 		}
 
