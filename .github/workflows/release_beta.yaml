@@ -13,6 +13,7 @@ jobs:
   docker_image:
     name: Docker Image
     runs-on: ubuntu-latest
+    concurrency: release_beta
 
     steps:
       - name: Checkout Repository
