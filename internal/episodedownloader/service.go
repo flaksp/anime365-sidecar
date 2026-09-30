@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
-	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
@@ -35,8 +33,6 @@ func NewService(
 	preferredTranslationAuthors []string,
 	blacklistedTranslationAuthors []string,
 	episodesToDownloadAhead uint32,
-	deleteRemovedTranslations bool,
-	notificationSender *notificationsender.Service,
 ) *Service {
 	return &Service{
 		myListService:                 myListService,
@@ -52,8 +48,6 @@ func NewService(
 		preferredTranslationAuthors:   parseTranslationAuthors(preferredTranslationAuthors),
 		blacklistedTranslationAuthors: parseTranslationAuthors(blacklistedTranslationAuthors),
 		episodesToDownloadAhead:       episodesToDownloadAhead,
-		deleteRemovedTranslations:     deleteRemovedTranslations,
-		notificationSender:            notificationSender,
 	}
 }
 
@@ -65,14 +59,12 @@ type Service struct {
 	embyService                   *emby.Service
 	downloader                    *downloader.SmartDownloader
 	scanSource                    *scansource.Service
-	notificationSender            *notificationsender.Service
 	myListService                 *mylist.Service
 	blacklistedTranslationAuthors map[string]struct{}
 	preferredTranslationAuthors   map[string]struct{}
 	temporaryDirectory            string
 	downloadVideoTimeout          time.Duration
 	episodesToDownloadAhead       uint32
-	deleteRemovedTranslations     bool
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
@@ -115,12 +107,6 @@ func (s *Service) DownloadEpisode(
 		return fmt.Errorf("could not get episode entity: %w", err)
 	}
 
-	if s.deleteRemovedTranslations {
-		if err := s.deleteTranslationsRemovedFromAnime365(ctx, showEntity, episodeEntity); err != nil {
-			return err
-		}
-	}
-
 	if episodeEntity.IsUnavailable {
 		return nil
 	}
@@ -145,146 +131,6 @@ func (s *Service) DownloadEpisode(
 	}
 
 	return nil
-}
-
-func (s *Service) deleteTranslationsRemovedFromAnime365(
-	ctx context.Context,
-	showEntity show.Show,
-	episodeEntity episode.Episode,
-) error {
-	downloadedTranslationIDs := s.embyService.GetTranslationIDs(
-		showEntity.Anime365ID,
-		episodeEntity.Anime365ID,
-	)
-
-	availableIDs := availableTranslationIDs(episodeEntity.Translations)
-	if episodeEntity.IsUnavailable {
-		// An explicitly inactive episode makes all translations unavailable,
-		// even when the API omits the translations collection.
-		availableIDs = make(map[episode.Anime365TranslationID]struct{})
-	}
-
-	removedTranslationIDs := findRemovedTranslationIDs(
-		downloadedTranslationIDs,
-		availableIDs,
-	)
-	if len(removedTranslationIDs) == 0 {
-		return nil
-	}
-
-	deletedAnyTranslation := false
-
-	for _, translationID := range removedTranslationIDs {
-		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
-			ctx,
-			showEntity.Anime365ID,
-			episodeEntity.Anime365ID,
-			translationID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to delete translation or episode removed or hidden on anime 365: %w", err)
-		}
-
-		if !deleted {
-			s.logger.InfoContext(
-				ctx,
-				"Deferring deletion because translation is being watched in Emby",
-				slog.Int64("show_id", int64(showEntity.Anime365ID)),
-				slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-				slog.Int64("translation_id", int64(translationID)),
-			)
-
-			continue
-		}
-
-		s.logger.InfoContext(
-			ctx,
-			"Deleted translation because it or its episode was removed or hidden on Anime 365",
-			slog.Int64("show_id", int64(showEntity.Anime365ID)),
-			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-			slog.Int64("translation_id", int64(translationID)),
-		)
-
-		if s.notificationSender != nil {
-			showName := showEntity.TitleRussian
-			if showName == "" {
-				showName = showEntity.TitleRomaji
-			}
-
-			if err := s.notificationSender.TranslationDeleted(
-				ctx,
-				showName,
-				episodeEntity.EpisodeLabel,
-				translationID,
-				episodeEntity.Translations[translationID],
-			); err != nil {
-				s.logger.WarnContext(
-					ctx,
-					"Error sending translation deleted notification to user",
-					slog.Int64("show_id", int64(showEntity.Anime365ID)),
-					slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
-					slog.Int64("translation_id", int64(translationID)),
-					slog.String("error", err.Error()),
-				)
-			}
-		}
-
-		deletedAnyTranslation = true
-	}
-
-	if deletedAnyTranslation {
-		if err := s.embyService.RefreshLibrary(ctx); err != nil {
-			s.logger.WarnContext(
-				ctx,
-				"Failed to refresh Emby library after deleting removed translations",
-				slog.String("error", err.Error()),
-			)
-		}
-	}
-
-	return nil
-}
-
-func availableTranslationIDs(
-	translations map[episode.Anime365TranslationID]episode.Translation,
-) map[episode.Anime365TranslationID]struct{} {
-	if translations == nil {
-		return nil
-	}
-
-	translationIDs := make(map[episode.Anime365TranslationID]struct{}, len(translations))
-	for translationID, translationEntity := range translations {
-		if !translationEntity.IsVisible {
-			continue
-		}
-
-		translationIDs[translationID] = struct{}{}
-	}
-
-	return translationIDs
-}
-
-func findRemovedTranslationIDs(
-	downloadedTranslationIDs map[episode.Anime365TranslationID]struct{},
-	availableTranslationIDs map[episode.Anime365TranslationID]struct{},
-) []episode.Anime365TranslationID {
-	// A nil collection means Anime 365 did not provide translation availability,
-	// so it is not safe to infer that every downloaded translation was removed.
-	if availableTranslationIDs == nil {
-		return nil
-	}
-
-	removedTranslationIDs := make([]episode.Anime365TranslationID, 0)
-
-	for translationID := range downloadedTranslationIDs {
-		if _, exists := availableTranslationIDs[translationID]; !exists {
-			removedTranslationIDs = append(removedTranslationIDs, translationID)
-		}
-	}
-
-	slices.Sort(removedTranslationIDs)
-
-	return removedTranslationIDs
 }
 
 func (s *Service) downloadTranslation(

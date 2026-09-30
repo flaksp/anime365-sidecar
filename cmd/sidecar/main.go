@@ -7,6 +7,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/cmd/sidecar/startup"
 	"github.com/flaksp/anime365-sidecar/cmd/sidecar/worker"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/librarycleanup"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/internal/showdownloader"
@@ -32,6 +33,7 @@ func main() {
 		fx.Provide(module.EmbyService),
 		fx.Provide(showdownloader.NewService),
 		fx.Provide(module.EpisodeDownloader),
+		fx.Provide(librarycleanup.NewService),
 		fx.Provide(module.ScanSource),
 		fx.Provide(module.LibraryMetadataRefresher),
 		fx.Provide(watchednotifier.NewService),
@@ -49,6 +51,7 @@ func main() {
 		fx.Invoke(worker.AnimeListSyncronizer),
 		fx.Invoke(worker.AnimeMappingDatabaseRefresher),
 		fx.Invoke(worker.ShowDownloader),
+		fx.Invoke(worker.LibraryCleanup),
 		fx.Invoke(worker.ItemsWithoutMetadataMetadataRefresher),
 		fx.Invoke(worker.ItemsWithMetadataMetadataRefresher),
 		fx.Invoke(worker.WatchedNotifier),
