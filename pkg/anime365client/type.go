@@ -40,16 +40,18 @@ const (
 )
 
 type Episode struct {
+	IsActive              *int          `json:"isActive"`
 	EpisodeFull           string        `json:"episodeFull"`
 	EpisodeType           string        `json:"episodeType"`
+	EpisodeTitle          string        `json:"episodeTitle"`
 	FirstUploadedDateTime string        `json:"firstUploadedDateTime"`
 	Translations          []Translation `json:"translations"`
-	IsActive              *int          `json:"isActive"`
 	EpisodeInt            float64       `json:"episodeInt"`
 	ID                    int64         `json:"id"`
 }
 
 type Translation struct {
+	IsActive       *int     `json:"isActive"`
 	AuthorsSummary string   `json:"authorsSummary"`
 	TypeKind       string   `json:"typeKind"`
 	TypeLang       string   `json:"typeLang"`
@@ -57,7 +59,6 @@ type Translation struct {
 	URL            string   `json:"url"`
 	AuthorsList    []string `json:"authorsList"`
 	ID             int64    `json:"id"`
-	IsActive       *int     `json:"isActive"`
 	Priority       int      `json:"priority"`
 }
 

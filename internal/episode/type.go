@@ -131,6 +131,11 @@ func NewEpisode(episodeDTO anime365client.Episode) (Episode, error) {
 		IsUnavailable: episodeDTO.IsActive != nil && *episodeDTO.IsActive <= 0,
 	}
 
+	episodeTitle := strings.TrimSpace(episodeDTO.EpisodeTitle)
+	if episodeTitle != "" {
+		episodeEntity.EpisodeLabel = episodeTitle
+	}
+
 	episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)
 	if fractionalPart != 0 || episodeNumber <= 0 {
 		episodeEntity.IsSpecial = true
