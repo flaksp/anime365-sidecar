@@ -8,6 +8,7 @@ import (
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 )
@@ -18,6 +19,7 @@ func NewService(
 	embyService *emby.Service,
 	logger *slog.Logger,
 	notificationSender *notificationsender.Service,
+	myListService *mylist.Service,
 ) *Service {
 	return &Service{
 		episodeService:     episodeService,
@@ -25,6 +27,7 @@ func NewService(
 		embyService:        embyService,
 		logger:             logger,
 		notificationSender: notificationSender,
+		myListService:      myListService,
 	}
 }
 
@@ -34,6 +37,7 @@ type Service struct {
 	embyService        *emby.Service
 	logger             *slog.Logger
 	notificationSender *notificationsender.Service
+	myListService      *mylist.Service
 }
 
 func (s *Service) RunOnce(ctx context.Context) error {
@@ -99,6 +103,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 	}
 
 	deletedAnyTranslation := false
+	notifyDeletion := s.notificationSender != nil && !s.isEpisodeWatched(showEntity.Anime365ID, episodeEntity)
 
 	for _, translationID := range removedTranslationIDs {
 		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
@@ -131,7 +136,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 			slog.Int64("translation_id", int64(translationID)),
 		)
 
-		if s.notificationSender != nil {
+		if notifyDeletion {
 			showName := showEntity.TitleRussian
 			if showName == "" {
 				showName = showEntity.TitleRomaji
@@ -169,6 +174,14 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 	}
 
 	return nil
+}
+
+func (s *Service) isEpisodeWatched(
+	showID show.Anime365SeriesID,
+	episodeEntity episode.Episode,
+) bool {
+	return episodeEntity.EpisodeNumber > 0 &&
+		s.myListService.GetLastWatchedEpisodeNumber(showID) >= episodeEntity.EpisodeNumber
 }
 
 func availableTranslationIDs(
