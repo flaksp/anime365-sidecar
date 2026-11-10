@@ -56,7 +56,11 @@ func (d *ChunkedDownloader) Download(
 		return fmt.Errorf("downloading metadata: %w", err)
 	}
 
-	if !supportsRangeRequests {
+	if d.chunkSizeBytes <= 0 || d.workersCount <= 0 || d.maxChunkRetries < 0 {
+		return errors.New("invalid chunked downloader configuration")
+	}
+
+	if !supportsRangeRequests || fileSizeBytes <= 0 {
 		return ErrRangeRequestsNotSupported
 	}
 
@@ -138,6 +142,7 @@ func (d *ChunkedDownloader) Download(
 					chunkIndex,
 					chunkStartBytes,
 					chunkEndBytes,
+					fileSizeBytes,
 					progressLogger,
 				); err != nil {
 					return err
@@ -164,6 +169,7 @@ func (d *ChunkedDownloader) downloadChunkWithRetry(
 	chunkIndex int64,
 	chunkStartBytes int64,
 	chunkEndBytes int64,
+	fileSizeBytes int64,
 	progressLogger *concurrentProgressLogger,
 ) error {
 	var lastErr error
@@ -175,11 +181,16 @@ func (d *ChunkedDownloader) downloadChunkWithRetry(
 			destinationFile,
 			chunkStartBytes,
 			chunkEndBytes,
+			fileSizeBytes,
 		)
 		progressLogger.Add(int64(writtenBytes))
 
 		if err == nil {
 			return nil
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 
 		lastErr = err
@@ -228,12 +239,14 @@ func (d *ChunkedDownloader) downloadChunk(
 	destinationFile *os.File,
 	chunkStartBytes int64,
 	chunkEndBytes int64,
+	fileSizeBytes int64,
 ) (int, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL.String(), nil)
 	if err != nil {
 		return 0, err
 	}
 
+	httpRequest.Header.Set("Accept-Encoding", "identity")
 	httpRequest.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", chunkStartBytes, chunkEndBytes))
 
 	httpResponse, err := d.httpClient.Do(httpRequest)
@@ -254,6 +267,21 @@ func (d *ChunkedDownloader) downloadChunk(
 		)
 	}
 
+	expectedBytes := chunkEndBytes - chunkStartBytes + 1
+
+	expectedRange := fmt.Sprintf("bytes %d-%d/%d", chunkStartBytes, chunkEndBytes, fileSizeBytes)
+	if httpResponse.Header.Get("Content-Range") != expectedRange {
+		return 0, fmt.Errorf(
+			"unexpected Content-Range: %q, expected %q",
+			httpResponse.Header.Get("Content-Range"),
+			expectedRange,
+		)
+	}
+
+	if httpResponse.ContentLength >= 0 && httpResponse.ContentLength != expectedBytes {
+		return 0, fmt.Errorf("unexpected chunk length: %d, expected %d", httpResponse.ContentLength, expectedBytes)
+	}
+
 	buffer := make([]byte, 32*1024)
 	offset := chunkStartBytes
 
@@ -262,12 +290,20 @@ func (d *ChunkedDownloader) downloadChunk(
 	for {
 		readBytes, err := httpResponse.Body.Read(buffer)
 
+		if int64(writtenBytes)+int64(readBytes) > expectedBytes {
+			return writtenBytes, errors.New("chunk response exceeds requested range")
+		}
+
 		if readBytes > 0 {
 			writtenBytesIter, writeErr := destinationFile.WriteAt(buffer[:readBytes], offset)
 
 			writtenBytes += writtenBytesIter
 			if writeErr != nil {
 				return writtenBytes, writeErr
+			}
+
+			if writtenBytesIter != readBytes {
+				return writtenBytes, io.ErrShortWrite
 			}
 
 			offset += int64(readBytes)
@@ -282,6 +318,15 @@ func (d *ChunkedDownloader) downloadChunk(
 		}
 	}
 
+	if int64(writtenBytes) != expectedBytes {
+		return writtenBytes, fmt.Errorf(
+			"incomplete chunk: received %d bytes, expected %d: %w",
+			writtenBytes,
+			expectedBytes,
+			io.ErrUnexpectedEOF,
+		)
+	}
+
 	return writtenBytes, nil
 }
 
@@ -290,6 +335,8 @@ func (d *ChunkedDownloader) getMetadata(ctx context.Context, fileURL *url.URL) (
 	if err != nil {
 		return 0, false, fmt.Errorf("creating http request with context: %w", err)
 	}
+
+	httpRequest.Header.Set("Accept-Encoding", "identity")
 
 	httpResponse, err := d.httpClient.Do(httpRequest)
 	if err != nil {
@@ -303,6 +350,14 @@ func (d *ChunkedDownloader) getMetadata(ctx context.Context, fileURL *url.URL) (
 			d.logger.WarnContext(ctx, "Closing HTTP response body stream error", slog.String("error", err.Error()))
 		}
 	}(httpResponse.Body)
+
+	if httpResponse.StatusCode == http.StatusMethodNotAllowed || httpResponse.StatusCode == http.StatusNotImplemented {
+		return 0, false, nil
+	}
+
+	if httpResponse.StatusCode != http.StatusOK {
+		return 0, false, fmt.Errorf("unexpected HTTP status: %s", httpResponse.Status)
+	}
 
 	return httpResponse.ContentLength, httpResponse.Header.Get("Accept-Ranges") == "bytes", nil
 }

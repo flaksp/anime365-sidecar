@@ -45,6 +45,10 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 		}
 	}(httpResponse.Body)
 
+	if httpResponse.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected HTTP status: %s", httpResponse.Status)
+	}
+
 	destinationFile, err := os.OpenFile(destinationFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("opening destination file: %w", err)
@@ -88,9 +92,13 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 		readBytes, err := httpResponse.Body.Read(buffer)
 
 		if readBytes > 0 {
-			_, writeErr := destinationFile.WriteAt(buffer[:readBytes], offset)
+			writtenBytes, writeErr := destinationFile.WriteAt(buffer[:readBytes], offset)
 			if writeErr != nil {
 				return writeErr
+			}
+
+			if writtenBytes != readBytes {
+				return io.ErrShortWrite
 			}
 
 			offset += int64(readBytes)
@@ -105,6 +113,10 @@ func (d *SimpleDownloader) Download(ctx context.Context, fileURL *url.URL, desti
 		if err != nil {
 			return err
 		}
+	}
+
+	if offset == 0 || (httpResponse.ContentLength >= 0 && offset != httpResponse.ContentLength) {
+		return fmt.Errorf("incomplete download: received %d bytes, expected %d", offset, httpResponse.ContentLength)
 	}
 
 	if err := destinationFile.Sync(); err != nil {
