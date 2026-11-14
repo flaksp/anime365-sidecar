@@ -27,7 +27,7 @@ type Env struct {
 	ScanSources                           []string              `env:"SIDECAR_SCAN_SOURCES,required,notEmpty"                               envDefault:"list_watching"`
 	BlacklistedTranslationAuthors         []string              `env:"SIDECAR_BLACKLISTED_TRANSLATION_AUTHORS"`
 	PreferredTranslationAuthors           []string              `env:"SIDECAR_PREFERRED_TRANSLATION_AUTHORS"`
-	WatchedEpisodesCleanupAfter           time.Duration         `env:"SIDECAR_WATCHED_EPISODES_CLEANUP_AFTER,notEmpty"                      envDefault:"168h"`
+	WatchedEpisodesCleanupAfter           time.Duration         `env:"SIDECAR_WATCHED_EPISODES_CLEANUP_AFTER,notEmpty"                      envDefault:"336h"`
 	DownloadTimeoutVideo                  time.Duration         `env:"SIDECAR_DOWNLOAD_TIMEOUT_VIDEO,required,notEmpty"                     envDefault:"1h"`
 	ScanIdleInterval                      time.Duration         `env:"SIDECAR_SCAN_IDLE_INTERVAL,required,notEmpty"                         envDefault:"5m"`
 	MetadataRefreshIdleInterval           time.Duration         `env:"SIDECAR_METADATA_REFRESH_IDLE_INTERVAL,required,notEmpty"             envDefault:"1h"`
