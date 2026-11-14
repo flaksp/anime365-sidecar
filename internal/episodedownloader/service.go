@@ -10,6 +10,7 @@ import (
 
 	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/librarycleanup"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -33,6 +34,7 @@ func NewService(
 	preferredTranslationAuthors []string,
 	blacklistedTranslationAuthors []string,
 	episodesToDownloadAhead uint32,
+	cleanupPolicy librarycleanup.Policy,
 ) *Service {
 	return &Service{
 		myListService:                 myListService,
@@ -48,10 +50,12 @@ func NewService(
 		preferredTranslationAuthors:   parseTranslationAuthors(preferredTranslationAuthors),
 		blacklistedTranslationAuthors: parseTranslationAuthors(blacklistedTranslationAuthors),
 		episodesToDownloadAhead:       episodesToDownloadAhead,
+		cleanupPolicy:                 cleanupPolicy,
 	}
 }
 
 type Service struct {
+	cleanupPolicy                 librarycleanup.Policy
 	anime365Client                *anime365client.Client
 	translationVariantsToDownload map[episode.TranslationVariant]struct{}
 	episodeService                *episode.Service
@@ -68,6 +72,17 @@ type Service struct {
 }
 
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
+	// Forced scan sources must not download content again after policy cleanup.
+	if s.cleanupPolicy == librarycleanup.DeleteCompletedAndDroppedShows &&
+		s.myListService.IsCompletedOrDropped(showID) {
+		return false
+	}
+
+	if s.cleanupPolicy == librarycleanup.DeleteWatchedEpisodes && episodeNumber > 0 &&
+		episodeNumber <= s.myListService.GetLastWatchedEpisodeNumber(showID) {
+		return false
+	}
+
 	if episodeNumber > s.myListService.GetLastWatchedEpisodeNumber(showID)+int64(s.episodesToDownloadAhead) {
 		return false
 	}

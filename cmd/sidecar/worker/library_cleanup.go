@@ -15,7 +15,7 @@ var LibraryCleanup = func(
 	config *config.Env,
 	libraryCleanup *librarycleanup.Service,
 ) error {
-	if !config.DeleteRemovedTranslations {
+	if !config.DeleteRemovedTranslations && config.WatchedEpisodesCleanupPolicy == librarycleanup.DoNotDelete {
 		return nil
 	}
 

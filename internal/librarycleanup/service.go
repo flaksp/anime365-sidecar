@@ -20,6 +20,7 @@ func NewService(
 	logger *slog.Logger,
 	notificationSender *notificationsender.Service,
 	myListService *mylist.Service,
+	options Options,
 ) *Service {
 	return &Service{
 		episodeService:     episodeService,
@@ -28,6 +29,7 @@ func NewService(
 		logger:             logger,
 		notificationSender: notificationSender,
 		myListService:      myListService,
+		options:            options,
 	}
 }
 
@@ -38,6 +40,7 @@ type Service struct {
 	logger             *slog.Logger
 	notificationSender *notificationsender.Service
 	myListService      *mylist.Service
+	options            Options
 }
 
 func (s *Service) RunOnce(ctx context.Context) error {
@@ -46,6 +49,21 @@ func (s *Service) RunOnce(ctx context.Context) error {
 
 		for episodeID, translations := range episodes {
 			if len(translations) == 0 {
+				continue
+			}
+
+			deleted, err := s.deleteStaleEpisode(ctx, showID, episodeID)
+			if err != nil {
+				s.logger.ErrorContext(ctx, "Failed to clean up stale episode, skipping it",
+					slog.Int64("show_id", int64(showID)),
+					slog.Int64("episode_id", int64(episodeID)),
+					slog.String("error", err.Error()),
+				)
+
+				continue
+			}
+
+			if deleted || !s.options.DeleteRemovedTranslations {
 				continue
 			}
 
@@ -79,6 +97,53 @@ func (s *Service) RunOnce(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *Service) deleteStaleEpisode(
+	ctx context.Context,
+	showID show.Anime365SeriesID,
+	episodeID episode.Anime365EpisodeID,
+) (bool, error) {
+	switch s.options.Policy {
+	case DeleteWatchedEpisodes:
+		episodeEntity, err := s.episodeService.GetEpisode(ctx, episodeID)
+		if err != nil {
+			return false, err
+		}
+
+		if !s.isEpisodeWatched(showID, episodeEntity) {
+			return false, nil
+		}
+	case DeleteCompletedAndDroppedShows:
+		if !s.myListService.IsCompletedOrDropped(showID) {
+			return false, nil
+		}
+	default:
+		return false, nil
+	}
+
+	deleted, err := s.embyService.DeleteEpisodeIfStale(ctx, showID, episodeID, s.options.DeleteAfter)
+	if err != nil {
+		return true, err
+	}
+
+	if deleted {
+		s.logger.InfoContext(ctx, "Deleted stale episode",
+			slog.Int64("show_id", int64(showID)),
+			slog.Int64("episode_id", int64(episodeID)),
+			slog.String("policy", string(s.options.Policy)),
+		)
+
+		if err := s.embyService.RefreshLibrary(ctx); err != nil {
+			s.logger.WarnContext(
+				ctx,
+				"Failed to refresh Emby library after deleting stale episode",
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	return deleted, nil
 }
 
 func (s *Service) deleteTranslationsRemovedFromAnime365(

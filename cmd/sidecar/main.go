@@ -34,6 +34,7 @@ func main() {
 		fx.Provide(showdownloader.NewService),
 		fx.Provide(module.EpisodeDownloader),
 		fx.Provide(librarycleanup.NewService),
+		fx.Provide(module.LibraryCleanupOptions),
 		fx.Provide(module.ScanSource),
 		fx.Provide(module.LibraryMetadataRefresher),
 		fx.Provide(watchednotifier.NewService),

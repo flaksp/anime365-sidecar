@@ -238,3 +238,19 @@ func (c *Client) GetUserItems(
 
 	return response, err
 }
+
+// GetUserItem reads user data for a specific item, including an episode version.
+func (c *Client) GetUserItem(ctx context.Context, userID, itemID string) (BaseItemDto, error) {
+	var response BaseItemDto
+
+	err := c.sendGETRequestToAPI(ctx, fmt.Sprintf("/Users/%s/Items/%s", userID, itemID), nil, &response)
+	if err != nil {
+		return BaseItemDto{}, err
+	}
+
+	if response.Id == "" {
+		return BaseItemDto{}, fmt.Errorf("Emby returned no item for %s", itemID)
+	}
+
+	return response, nil
+}
