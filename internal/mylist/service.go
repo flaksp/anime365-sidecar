@@ -182,14 +182,22 @@ func (s *Service) GetWatchingList() map[show.Anime365SeriesID]int64 {
 	return s.watchingList
 }
 
-func (s *Service) IsCompletedOrDropped(showID show.Anime365SeriesID) bool {
+func (s *Service) IsCompletedDroppedOrNotInList(showID show.Anime365SeriesID) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	// All lists are populated together after a successful sync, including empty lists.
+	if s.plannedList == nil {
+		return false
+	}
+
 	_, completed := s.completedList[showID]
 	_, dropped := s.droppedList[showID]
+	_, planned := s.plannedList[showID]
+	_, watching := s.watchingList[showID]
+	_, onHold := s.onHoldList[showID]
 
-	return completed || dropped
+	return completed || dropped || (!planned && !watching && !onHold)
 }
 
 func (s *Service) GetPlannedList() map[show.Anime365SeriesID]int64 {

@@ -115,7 +115,7 @@ func (s *Service) deleteStaleEpisode(
 			return false, nil
 		}
 	case DeleteCompletedAndDroppedShows:
-		if !s.myListService.IsCompletedOrDropped(showID) {
+		if !s.myListService.IsCompletedDroppedOrNotInList(showID) {
 			return false, nil
 		}
 	default:

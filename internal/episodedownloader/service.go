@@ -74,7 +74,7 @@ type Service struct {
 func (s *Service) ShouldEpisodeBeOnDisk(showID show.Anime365SeriesID, episodeNumber int64) bool {
 	// Forced scan sources must not download content again after policy cleanup.
 	if s.cleanupPolicy == librarycleanup.DeleteCompletedAndDroppedShows &&
-		s.myListService.IsCompletedOrDropped(showID) {
+		s.myListService.IsCompletedDroppedOrNotInList(showID) {
 		return false
 	}
 
