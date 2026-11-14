@@ -20,6 +20,7 @@ func (s *Service) DeleteEpisodeIfStale(
 	translationIDs := s.manifestService.GetTranslationIDs(showID, episodeID)
 	versionIDs := make(map[string]struct{})
 	itemIDs := make(map[string]struct{})
+	mediaSourceIDs := make(map[string]struct{})
 
 	for translationID := range translationIDs {
 		item, err := s.getEpisodeItem(ctx, showID, episodeID, translationID)
@@ -28,14 +29,17 @@ func (s *Service) DeleteEpisodeIfStale(
 		}
 
 		itemIDs[item.Id] = struct{}{}
+
+		versionIDs[item.Id] = struct{}{}
 		for _, source := range item.MediaSources {
 			if source.Id != "" {
-				versionIDs[source.Id] = struct{}{}
+				mediaSourceIDs[source.Id] = struct{}{}
 			}
-		}
-		// An episode with only one version may not expose MediaSources.
-		if len(item.MediaSources) == 0 {
-			versionIDs[item.Id] = struct{}{}
+			// Media source IDs identify playback streams, not library items.
+			// Alternate versions expose their library item ID separately.
+			if source.ItemId != "" {
+				versionIDs[source.ItemId] = struct{}{}
+			}
 		}
 	}
 
@@ -72,7 +76,7 @@ func (s *Service) DeleteEpisodeIfStale(
 		}
 
 		if session.PlayState != nil {
-			if _, playing := itemIDs[session.PlayState.MediaSourceId]; playing {
+			if _, playing := mediaSourceIDs[session.PlayState.MediaSourceId]; playing {
 				return false, nil
 			}
 		}
