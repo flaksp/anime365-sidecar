@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
@@ -20,7 +20,7 @@ import (
 func NewService(
 	showService *show.Service,
 	episodeService *episode.Service,
-	embyService *emby.Service,
+	mediaServer mediaserver.Server,
 	simpleDownloader *downloader.SimpleDownloader,
 	logger *slog.Logger,
 	notificationSenderService *notificationsender.Service,
@@ -30,7 +30,7 @@ func NewService(
 	return &Service{
 		showService:               showService,
 		episodeService:            episodeService,
-		embyService:               embyService,
+		mediaServer:               mediaServer,
 		simpleDownloader:          simpleDownloader,
 		logger:                    logger,
 		notificationSenderService: notificationSenderService,
@@ -42,7 +42,7 @@ func NewService(
 type Service struct {
 	showService               *show.Service
 	episodeService            *episode.Service
-	embyService               *emby.Service
+	mediaServer               mediaserver.Server
 	simpleDownloader          *downloader.SimpleDownloader
 	logger                    *slog.Logger
 	notificationSenderService *notificationsender.Service
@@ -51,9 +51,9 @@ type Service struct {
 }
 
 func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
-	ids, err := s.embyService.GetIDsWithoutMetadataFromEmbyLibrary(ctx)
+	ids, err := s.mediaServer.GetIDsWithoutMetadata(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get item ids without metadata from emby library: %w", err)
+		return fmt.Errorf("failed to get item ids without metadata from media server library: %w", err)
 	}
 
 	for showID, items := range ids {
@@ -67,10 +67,10 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 			continue
 		}
 
-		if err := s.embyService.InitialUpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+		if err := s.mediaServer.InitializeShowMetadata(ctx, showEntity); err != nil {
 			s.logger.WarnContext(
 				ctx,
-				"Failed to perform initial update show in Emby with Anime 365 metadata, this metadata was not updated",
+				"Failed to perform initial update show in media server with Anime 365 metadata, this metadata was not updated",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
@@ -108,7 +108,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 					continue
 				}
 
-				if err := s.embyService.InitialUpdateTranslationMetadataWithAnime365Metadata(
+				if err := s.mediaServer.InitializeTranslationMetadata(
 					ctx,
 					showID,
 					episodeEntity,
@@ -116,7 +116,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 				); err != nil {
 					s.logger.ErrorContext(
 						ctx,
-						"Failed to perform initial update translation in Emby with Anime 365 metadata, it was not updated",
+						"Failed to perform initial update translation in media server with Anime 365 metadata, it was not updated",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
@@ -127,7 +127,7 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 				}
 
 				if s.notificationSenderService != nil {
-					metadata, err := s.embyService.GetEpisodeMetadataForNotification(
+					metadata, err := s.mediaServer.GetEpisodeMetadataForNotification(
 						ctx,
 						showEntity.Anime365ID,
 						episodeEntity.Anime365ID,
@@ -171,9 +171,9 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 }
 
 func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
-	ids, err := s.embyService.GetIDsWithMetadataFromEmbyLibrary(ctx)
+	ids, err := s.mediaServer.GetIDsWithMetadata(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get item ids with metadata from emby library: %w", err)
+		return fmt.Errorf("failed to get item ids with metadata from media server library: %w", err)
 	}
 
 	for showID, items := range ids {
@@ -187,10 +187,10 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			continue
 		}
 
-		if err := s.embyService.UpdateShowMetadataWithAnime365Metadata(ctx, showEntity); err != nil {
+		if err := s.mediaServer.UpdateShowMetadata(ctx, showEntity); err != nil {
 			s.logger.WarnContext(
 				ctx,
-				"Failed to update show in Emby with Anime 365 metadata, this metadata was not updated",
+				"Failed to update show in media server with Anime 365 metadata, this metadata was not updated",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
@@ -207,10 +207,10 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			)
 		}
 
-		if err := s.embyService.UpdateShowMetadataWithShikimoriMetadata(ctx, showID, showFromShikimori); err != nil {
+		if err := s.mediaServer.UpdateShowMetadataFromShikimori(ctx, showID, showFromShikimori); err != nil {
 			s.logger.WarnContext(
 				ctx,
-				"Failed to update show in Emby with Shikimori metadata, this metadata was not updated",
+				"Failed to update show in media server with Shikimori metadata, this metadata was not updated",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
@@ -262,7 +262,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 					continue
 				}
 
-				if err := s.embyService.UpdateTranslationMetadataWithAnime365Metadata(
+				if err := s.mediaServer.UpdateTranslationMetadata(
 					ctx,
 					showID,
 					episodeEntity,
@@ -270,7 +270,7 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 				); err != nil {
 					s.logger.ErrorContext(
 						ctx,
-						"Failed to update translation in Emby with Anime 365 metadata, it was not updated",
+						"Failed to update translation in media server with Anime 365 metadata, it was not updated",
 						slog.Int64("show_id", int64(showEntity.Anime365ID)),
 						slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 						slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
@@ -294,7 +294,7 @@ func (s *Service) downloadPosterIfNotExists(
 		return nil
 	}
 
-	exists, err := s.embyService.IsPosterExists(showEntity.Anime365ID, showEntity.PosterURL)
+	exists, err := s.mediaServer.IsPosterExists(showEntity.Anime365ID, showEntity.PosterURL)
 	if err != nil {
 		return fmt.Errorf("failed to check if show poster exists: %w", err)
 	}
@@ -344,7 +344,7 @@ func (s *Service) downloadPosterIfNotExists(
 		return fmt.Errorf("failed to download poster: %w", err)
 	}
 
-	posterFileAbsolutePath, err := s.embyService.ComputePosterFileAbsolutePath(
+	posterFileAbsolutePath, err := s.mediaServer.ComputePosterFileAbsolutePath(
 		showEntity.Anime365ID,
 		showEntity.PosterURL,
 	)
@@ -365,7 +365,7 @@ func (s *Service) downloadBackdropIfNotExists(
 	imageURL *url.URL,
 	screenshotID string,
 ) error {
-	if s.embyService.IsBackdropExists(showID, screenshotID) {
+	if s.mediaServer.IsBackdropExists(showID, screenshotID) {
 		return nil
 	}
 
@@ -405,7 +405,7 @@ func (s *Service) downloadBackdropIfNotExists(
 		return fmt.Errorf("failed to download backdrop: %w", err)
 	}
 
-	backdropFileAbsolutePath, err := s.embyService.ComputeBackdropFileAbsolutePath(showID, imageURL)
+	backdropFileAbsolutePath, err := s.mediaServer.ComputeBackdropFileAbsolutePath(showID, imageURL)
 	if err != nil {
 		return fmt.Errorf("failed to compute backdrop file name: %w", err)
 	}
@@ -414,7 +414,7 @@ func (s *Service) downloadBackdropIfNotExists(
 		return fmt.Errorf("failed to move backdrop file: %w", err)
 	}
 
-	if err := s.embyService.AddBackdrop(showID, screenshotID); err != nil {
+	if err := s.mediaServer.AddBackdrop(showID, screenshotID); err != nil {
 		return fmt.Errorf("failed to add backdrop: %w", err)
 	}
 

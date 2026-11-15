@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/notificationsender"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -16,7 +16,7 @@ import (
 func NewService(
 	episodeService *episode.Service,
 	showService *show.Service,
-	embyService *emby.Service,
+	mediaServer mediaserver.Server,
 	logger *slog.Logger,
 	notificationSender *notificationsender.Service,
 	myListService *mylist.Service,
@@ -25,7 +25,7 @@ func NewService(
 	return &Service{
 		episodeService:     episodeService,
 		showService:        showService,
-		embyService:        embyService,
+		mediaServer:        mediaServer,
 		logger:             logger,
 		notificationSender: notificationSender,
 		myListService:      myListService,
@@ -36,7 +36,7 @@ func NewService(
 type Service struct {
 	episodeService     *episode.Service
 	showService        *show.Service
-	embyService        *emby.Service
+	mediaServer        mediaserver.Server
 	logger             *slog.Logger
 	notificationSender *notificationsender.Service
 	myListService      *mylist.Service
@@ -44,7 +44,7 @@ type Service struct {
 }
 
 func (s *Service) RunOnce(ctx context.Context) error {
-	for showID, episodes := range s.embyService.GetIDs() {
+	for showID, episodes := range s.mediaServer.GetIDs() {
 		var showEntity show.Show
 
 		for episodeID, translations := range episodes {
@@ -122,7 +122,7 @@ func (s *Service) deleteStaleEpisode(
 		return false, nil
 	}
 
-	deleted, err := s.embyService.DeleteEpisodeIfStale(ctx, showID, episodeID, s.options.DeleteAfter)
+	deleted, err := s.mediaServer.DeleteEpisodeIfStale(ctx, showID, episodeID, s.options.DeleteAfter)
 	if err != nil {
 		return true, err
 	}
@@ -134,10 +134,10 @@ func (s *Service) deleteStaleEpisode(
 			slog.String("policy", string(s.options.Policy)),
 		)
 
-		if err := s.embyService.RefreshLibrary(ctx); err != nil {
+		if err := s.mediaServer.RefreshLibrary(ctx); err != nil {
 			s.logger.WarnContext(
 				ctx,
-				"Failed to refresh Emby library after deleting stale episode",
+				"Failed to refresh media server library after deleting stale episode",
 				slog.String("error", err.Error()),
 			)
 		}
@@ -171,7 +171,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 	notifyDeletion := s.notificationSender != nil && !s.isEpisodeWatched(showEntity.Anime365ID, episodeEntity)
 
 	for _, translationID := range removedTranslationIDs {
-		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
+		deleted, err := s.mediaServer.DeleteTranslationIfNotPlaying(
 			ctx,
 			showEntity.Anime365ID,
 			episodeEntity.Anime365ID,
@@ -184,7 +184,7 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 		if !deleted {
 			s.logger.InfoContext(
 				ctx,
-				"Deferring deletion because translation is being watched in Emby",
+				"Deferring deletion because translation is being watched in media server",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 				slog.Int64("translation_id", int64(translationID)),
@@ -229,10 +229,10 @@ func (s *Service) deleteTranslationsRemovedFromAnime365(
 	}
 
 	if deletedAnyTranslation {
-		if err := s.embyService.RefreshLibrary(ctx); err != nil {
+		if err := s.mediaServer.RefreshLibrary(ctx); err != nil {
 			s.logger.WarnContext(
 				ctx,
-				"Failed to refresh Emby library after deleting removed translations",
+				"Failed to refresh media server library after deleting removed translations",
 				slog.String("error", err.Error()),
 			)
 		}

@@ -7,15 +7,16 @@ import (
 	"github.com/flaksp/anime365-sidecar/cmd/sidecar/config"
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/emby"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 )
 
-var EmbyService = func(
+var MediaServer = func(
 	config *config.Env,
 	logger *slog.Logger,
 	embyClient *embyclient.ClientWithResponses,
 	animeMappingService *animemapping.Service,
-) (*emby.Service, error) {
+) (mediaserver.Server, error) {
 	downloadsDirectoryAbsolutePath, err := filepath.Abs(config.LibraryDirectory)
 	if err != nil {
 		return nil, err
@@ -30,6 +31,7 @@ var EmbyService = func(
 	return emby.NewService(
 		downloadsDirectoryAbsolutePath,
 		config.EmbyUserID,
+		config.EmbyLibraryID,
 		logger,
 		embyClient,
 		embyPublicURL,

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/librarycleanup"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -25,7 +25,7 @@ func NewService(
 	scanSource *scansource.Service,
 	episodeService *episode.Service,
 	logger *slog.Logger,
-	embyService *emby.Service,
+	mediaServer mediaserver.Server,
 	smartDownloader *downloader.SmartDownloader,
 	anime365Client *anime365client.Client,
 	translations []string,
@@ -41,7 +41,7 @@ func NewService(
 		scanSource:                    scanSource,
 		episodeService:                episodeService,
 		logger:                        logger,
-		embyService:                   embyService,
+		mediaServer:                   mediaServer,
 		downloader:                    smartDownloader,
 		anime365Client:                anime365Client,
 		translationVariantsToDownload: parseTranslationVariants(translations, logger),
@@ -60,7 +60,7 @@ type Service struct {
 	translationVariantsToDownload map[episode.TranslationVariant]struct{}
 	episodeService                *episode.Service
 	logger                        *slog.Logger
-	embyService                   *emby.Service
+	mediaServer                   mediaserver.Server
 	downloader                    *downloader.SmartDownloader
 	scanSource                    *scansource.Service
 	myListService                 *mylist.Service
@@ -159,7 +159,7 @@ func (s *Service) downloadTranslation(
 		return fmt.Errorf("could not get translation media: %w", err)
 	}
 
-	height, exists := s.embyService.GetTranslationQuality(
+	height, exists := s.mediaServer.GetTranslationQuality(
 		showEntity.Anime365ID,
 		episodeEntity.Anime365ID,
 		translationEntity.Anime365ID,
@@ -171,7 +171,7 @@ func (s *Service) downloadTranslation(
 			return nil
 		}
 
-		deleted, err := s.embyService.DeleteTranslationIfNotPlaying(
+		deleted, err := s.mediaServer.DeleteTranslationIfNotPlaying(
 			ctx,
 			showEntity.Anime365ID,
 			episodeEntity.Anime365ID,
@@ -184,7 +184,7 @@ func (s *Service) downloadTranslation(
 		if !deleted {
 			s.logger.InfoContext(
 				ctx,
-				"Deferring quality upgrade because translation is being watched in Emby",
+				"Deferring quality upgrade because translation is being watched in media server",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 				slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
@@ -250,7 +250,7 @@ func (s *Service) downloadTranslation(
 		}
 	}
 
-	videoFileAbsolutePath, subtitlesFileAbsoultePath, err := s.embyService.ComputeTranslationFileAbsolutePathsForDownloads(
+	videoFileAbsolutePath, subtitlesFileAbsoultePath, err := s.mediaServer.ComputeTranslationFileAbsolutePathsForDownloads(
 		showEntity,
 		episodeEntity,
 		translationEntity,
@@ -284,7 +284,7 @@ func (s *Service) downloadTranslation(
 		}
 	}
 
-	if err := s.embyService.SaveTranslationPaths(
+	if err := s.mediaServer.SaveTranslationPaths(
 		ctx,
 		showEntity.Anime365ID,
 		episodeEntity.Anime365ID,

@@ -16,6 +16,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/authorslistformatter"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
@@ -26,11 +27,17 @@ import (
 	"golang.org/x/text/language/display"
 )
 
-var ErrEmbyItemNotFound = errors.New("emby item not found")
+var _ mediaserver.Server = (*Service)(nil)
+
+var (
+	errShowNotFoundInManifest        = errors.New("show not found in manifest")
+	errTranslationNotFoundInManifest = errors.New("translation not found in manifest")
+)
 
 func NewService(
 	downloadsDirectory string,
 	embyUserID string,
+	libraryID string,
 	logger *slog.Logger,
 	embyClient *embyclient.ClientWithResponses,
 	embyPublicURL *url.URL,
@@ -38,6 +45,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		logger:              logger,
+		libraryID:           libraryID,
 		manifestService:     manifest.NewService(downloadsDirectory, logger),
 		embyClient:          embyClient,
 		downloadsDirectory:  downloadsDirectory,
@@ -48,6 +56,7 @@ func NewService(
 }
 
 type Service struct {
+	libraryID                string
 	logger                   *slog.Logger
 	manifestService          *manifest.Service
 	embyClient               *embyclient.ClientWithResponses
@@ -59,11 +68,16 @@ type Service struct {
 	embyUserID               string
 }
 
-func (s *Service) LoadManifestFromDisk(ctx context.Context) error {
+// Initialize detects the configured library before loading the local manifest.
+func (s *Service) Initialize(ctx context.Context) error {
+	if err := s.detectLibraryDirectory(ctx, s.libraryID); err != nil {
+		return err
+	}
+
 	return s.manifestService.LoadFromDisk(ctx)
 }
 
-func (s *Service) DetectLibraryDirectoryFromEmby(ctx context.Context, libraryID string) error {
+func (s *Service) detectLibraryDirectory(ctx context.Context, libraryID string) error {
 	virtualFolderDTOs, err := getEmbyJSONResponse[embyclient.QueryResultVirtualFolderInfo](
 		s.embyClient.GetLibraryVirtualfoldersQueryWithResponse(ctx, nil),
 	)
@@ -370,19 +384,19 @@ var showLockedFields = []embyclient.MetadataFields{
 	embyclient.Tags,
 }
 
-// InitialUpdateShowMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrShowNotFoundInManifest returned.
-func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
+// InitializeShowMetadata updates Emby item with metadata from Anime 365.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errShowNotFoundInManifest returned.
+func (s *Service) InitializeShowMetadata(
 	ctx context.Context,
 	showFromAnime365 show.Show,
 ) error {
 	embyItem, err := s.getSeriesItem(ctx, showFromAnime365.Anime365ID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrShowNotFoundInManifest) {
-			return ErrShowNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errShowNotFoundInManifest) {
+			return errShowNotFoundInManifest
 		} else {
 			return fmt.Errorf(
 				"failed to get series emby item for show %d: %w",
@@ -476,19 +490,19 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 	return nil
 }
 
-// UpdateShowMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrShowNotFoundInManifest returned.
-func (s *Service) UpdateShowMetadataWithAnime365Metadata(
+// UpdateShowMetadata updates Emby item with metadata from Anime 365.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errShowNotFoundInManifest returned.
+func (s *Service) UpdateShowMetadata(
 	ctx context.Context,
 	showFromAnime365 show.Show,
 ) error {
 	embyItem, err := s.getSeriesItem(ctx, showFromAnime365.Anime365ID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrShowNotFoundInManifest) {
-			return ErrShowNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errShowNotFoundInManifest) {
+			return errShowNotFoundInManifest
 		} else {
 			return fmt.Errorf(
 				"failed to get series emby item for show %d: %w",
@@ -605,20 +619,20 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 	return nil
 }
 
-// UpdateShowMetadataWithShikimoriMetadata updates Emby item with metadata from Shikimori.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrShowNotFoundInManifest returned.
-func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
+// UpdateShowMetadataFromShikimori updates Emby item with metadata from Shikimori.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errShowNotFoundInManifest returned.
+func (s *Service) UpdateShowMetadataFromShikimori(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 	showFromShikimori show.ShowFromShikimori,
 ) error {
 	embyItem, err := s.getSeriesItem(ctx, showID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrShowNotFoundInManifest) {
-			return ErrShowNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errShowNotFoundInManifest) {
+			return errShowNotFoundInManifest
 		} else {
 			return fmt.Errorf(
 				"failed to get series emby item for show %d: %w",
@@ -735,10 +749,10 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 	return nil
 }
 
-// InitialUpdateTranslationMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrTranslationNotFoundInManifest returned.
-func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
+// InitializeTranslationMetadata updates Emby item with metadata from Anime 365.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errTranslationNotFoundInManifest returned.
+func (s *Service) InitializeTranslationMetadata(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 	episodeEntity episode.Episode,
@@ -746,10 +760,10 @@ func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
 ) error {
 	embyItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrTranslationNotFoundInManifest) {
-			return ErrTranslationNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errTranslationNotFoundInManifest) {
+			return errTranslationNotFoundInManifest
 		} else {
 			return fmt.Errorf(
 				"failed to get episode emby item for translation %d: %w",
@@ -810,10 +824,10 @@ func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
 	return nil
 }
 
-// UpdateTranslationMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrTranslationNotFoundInManifest returned.
-func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
+// UpdateTranslationMetadata updates Emby item with metadata from Anime 365.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errTranslationNotFoundInManifest returned.
+func (s *Service) UpdateTranslationMetadata(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 	episodeEntity episode.Episode,
@@ -821,10 +835,10 @@ func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
 ) error {
 	embyItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrTranslationNotFoundInManifest) {
-			return ErrTranslationNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errTranslationNotFoundInManifest) {
+			return errTranslationNotFoundInManifest
 		} else {
 			return fmt.Errorf(
 				"failed to get episode emby item for translation %d: %w",
@@ -956,10 +970,10 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 ) (int64, episode.Anime365TranslationID, error) {
 	embyItem, err := s.getSeriesItem(ctx, showID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return 0, 0, ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrShowNotFoundInManifest) {
-			return 0, 0, ErrShowNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return 0, 0, mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errShowNotFoundInManifest) {
+			return 0, 0, errShowNotFoundInManifest
 		} else {
 			return 0, 0, fmt.Errorf(
 				"failed to get series emby item for show %d: %w",
@@ -986,7 +1000,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 	}
 
 	if len(itemsResponse.Items) == 0 {
-		return 0, 0, ErrEmbyItemNotFound
+		return 0, 0, mediaserver.ErrItemNotFound
 	}
 
 	embyItem = itemsResponse.Items[0]
@@ -1007,7 +1021,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 	return int64(value(embyItem.IndexNumber)), translationID, nil
 }
 
-func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
+func (s *Service) GetIDsWithoutMetadata(
 	ctx context.Context,
 ) (map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{}, error) {
 	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
@@ -1062,7 +1076,7 @@ func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
 	return result, nil
 }
 
-func (s *Service) GetIDsWithMetadataFromEmbyLibrary(
+func (s *Service) GetIDsWithMetadata(
 	ctx context.Context,
 ) (map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{}, error) {
 	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
@@ -1127,28 +1141,20 @@ func (s *Service) GetIDsByVideoFileRelativePath(
 	return s.manifestService.GetIDsByVideoFileRelativePath(videoFileRelativePath)
 }
 
-type EpisodeMetadataForNotification struct {
-	WebURL                    *url.URL
-	VideoMetadataDisplayTitle string
-	SeriesName                string
-	EpisodeLabel              string
-	Bitrate                   int64
-}
-
 func (s *Service) GetEpisodeMetadataForNotification(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,
 	translationID episode.Anime365TranslationID,
-) (EpisodeMetadataForNotification, error) {
+) (mediaserver.EpisodeMetadataForNotification, error) {
 	embyItem, err := s.getEpisodeItem(ctx, showID, episodeID, translationID)
 	if err != nil {
-		if errors.Is(err, ErrEmbyItemNotFound) {
-			return EpisodeMetadataForNotification{}, ErrEmbyItemNotFound
-		} else if errors.Is(err, ErrTranslationNotFoundInManifest) {
-			return EpisodeMetadataForNotification{}, ErrTranslationNotFoundInManifest
+		if errors.Is(err, mediaserver.ErrItemNotFound) {
+			return mediaserver.EpisodeMetadataForNotification{}, mediaserver.ErrItemNotFound
+		} else if errors.Is(err, errTranslationNotFoundInManifest) {
+			return mediaserver.EpisodeMetadataForNotification{}, errTranslationNotFoundInManifest
 		} else {
-			return EpisodeMetadataForNotification{}, fmt.Errorf(
+			return mediaserver.EpisodeMetadataForNotification{}, fmt.Errorf(
 				"failed to get episode emby item for translation %d: %w",
 				translationID,
 				err,
@@ -1164,7 +1170,7 @@ func (s *Service) GetEpisodeMetadataForNotification(
 	webURL.Path = "/web/index.html"
 	webURL.Fragment = "!/item?" + q.Encode()
 
-	result := EpisodeMetadataForNotification{
+	result := mediaserver.EpisodeMetadataForNotification{
 		WebURL:       &webURL,
 		SeriesName:   value(embyItem.SeriesName),
 		EpisodeLabel: value(embyItem.Name),
@@ -1191,7 +1197,7 @@ func (s *Service) GetEpisodeMetadataForNotification(
 	}
 
 	if result.Bitrate == 0 || result.VideoMetadataDisplayTitle == "" {
-		return EpisodeMetadataForNotification{}, fmt.Errorf(
+		return mediaserver.EpisodeMetadataForNotification{}, fmt.Errorf(
 			"failed to determine file bitrate and video metadata of emby item %s",
 			value(embyItem.Id),
 		)
@@ -1236,23 +1242,19 @@ func (s *Service) createDirectoryIfNotExists(absolutePath string) error {
 	return nil
 }
 
-var ErrShowNotFoundInManifest = errors.New("show not found in manifest")
-
 // getEmbyShowPath returns show directory path as it should be in Emby library.
-// If entry not found in manifest error ErrShowNotFoundInManifest returned.
+// If entry not found in manifest error errShowNotFoundInManifest returned.
 func (s *Service) getEmbyShowPath(showID show.Anime365SeriesID) (string, error) {
 	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showID)
 	if !exists {
-		return "", ErrShowNotFoundInManifest
+		return "", errShowNotFoundInManifest
 	}
 
 	return filepath.Join(s.embyLibraryRootDirectory, showDirectoryName), nil
 }
 
-var ErrTranslationNotFoundInManifest = errors.New("translation not found in manifest")
-
 // getEmbyTranslationPath returns translation video file path as it should be in Emby library.
-// If entry not found in manifest error ErrTranslationNotFoundInManifest returned.
+// If entry not found in manifest error errTranslationNotFoundInManifest returned.
 func (s *Service) getEmbyTranslationPath(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,
@@ -1264,23 +1266,23 @@ func (s *Service) getEmbyTranslationPath(
 		translationID,
 	)
 	if !exists {
-		return "", ErrTranslationNotFoundInManifest
+		return "", errTranslationNotFoundInManifest
 	}
 
 	return filepath.Join(s.embyLibraryRootDirectory, translationRelativeFilePath), nil
 }
 
 // getSeriesItem returns an Emby item with type "Series" by Anime 365 show ID.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrShowNotFoundInManifest returned.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errShowNotFoundInManifest returned.
 func (s *Service) getSeriesItem(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
 ) (embyclient.BaseItemDto, error) {
 	embySeriesPath, err := s.getEmbyShowPath(showID)
 	if err != nil {
-		if errors.Is(err, ErrShowNotFoundInManifest) {
-			return embyclient.BaseItemDto{}, ErrShowNotFoundInManifest
+		if errors.Is(err, errShowNotFoundInManifest) {
+			return embyclient.BaseItemDto{}, errShowNotFoundInManifest
 		}
 
 		return embyclient.BaseItemDto{}, fmt.Errorf(
@@ -1308,15 +1310,15 @@ func (s *Service) getSeriesItem(
 	}
 
 	if len(itemsResponse.Items) == 0 {
-		return embyclient.BaseItemDto{}, ErrEmbyItemNotFound
+		return embyclient.BaseItemDto{}, mediaserver.ErrItemNotFound
 	}
 
 	return itemsResponse.Items[0], nil
 }
 
 // getEpisodeItem returns an Emby item with type "Episode" by Anime 365 IDs.
-// If item not found in Emby library error ErrEmbyItemNotFound returned.
-// If entry not found in manifest error ErrTranslationNotFoundInManifest returned.
+// If item not found in Emby library error mediaserver.ErrItemNotFound returned.
+// If entry not found in manifest error errTranslationNotFoundInManifest returned.
 func (s *Service) getEpisodeItem(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
@@ -1329,8 +1331,8 @@ func (s *Service) getEpisodeItem(
 		translationID,
 	)
 	if err != nil {
-		if errors.Is(err, ErrTranslationNotFoundInManifest) {
-			return embyclient.BaseItemDto{}, ErrTranslationNotFoundInManifest
+		if errors.Is(err, errTranslationNotFoundInManifest) {
+			return embyclient.BaseItemDto{}, errTranslationNotFoundInManifest
 		}
 
 		return embyclient.BaseItemDto{}, fmt.Errorf(
@@ -1358,7 +1360,7 @@ func (s *Service) getEpisodeItem(
 	}
 
 	if len(itemsResponse.Items) == 0 {
-		return embyclient.BaseItemDto{}, ErrEmbyItemNotFound
+		return embyclient.BaseItemDto{}, mediaserver.ErrItemNotFound
 	}
 
 	return itemsResponse.Items[0], nil

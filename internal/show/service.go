@@ -7,27 +7,23 @@ import (
 	"log/slog"
 
 	"github.com/flaksp/anime365-sidecar/pkg/anime365client"
-	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 	"github.com/flaksp/anime365-sidecar/pkg/shikimoriclient"
 )
 
 func NewService(
 	anime365Client *anime365client.Client,
-	embyClient *embyclient.ClientWithResponses,
 	shikimoriClient *shikimoriclient.Client,
 	logger *slog.Logger,
 ) *Service {
 	return &Service{
 		anime365Client:  anime365Client,
 		shikimoriClient: shikimoriClient,
-		embyClient:      embyClient,
 		logger:          logger,
 	}
 }
 
 type Service struct {
 	anime365Client  *anime365client.Client
-	embyClient      *embyclient.ClientWithResponses
 	shikimoriClient *shikimoriclient.Client
 	logger          *slog.Logger
 }

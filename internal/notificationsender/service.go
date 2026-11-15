@@ -28,7 +28,7 @@ type Service struct {
 
 func (s *Service) TranslationDownloaded(
 	ctx context.Context,
-	embyWebURL *url.URL,
+	mediaServerWebURL *url.URL,
 	showName string,
 	episodeLabel string,
 	translationVariant episode.TranslationVariant,
@@ -45,7 +45,7 @@ func (s *Service) TranslationDownloaded(
 		s.telegramRecipient,
 		fmt.Sprintf(
 			"💾 Загружено: <a href=\"%s\">%s</a>, %s. %s %s by %s (%s, %s)",
-			embyWebURL.String(),
+			mediaServerWebURL.String(),
 			episodeLabel,
 			showName,
 			display.English.Languages().Name(translationVariant.Language),

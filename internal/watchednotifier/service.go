@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"maps"
 
-	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -16,14 +16,14 @@ import (
 func NewService(
 	logger *slog.Logger,
 	myListService *mylist.Service,
-	embyService *emby.Service,
+	mediaServer mediaserver.Server,
 	scanSource *scansource.Service,
 	episodeService *episode.Service,
 ) *Service {
 	return &Service{
 		logger:         logger,
 		myListService:  myListService,
-		embyService:    embyService,
+		mediaServer:    mediaServer,
 		scanSource:     scanSource,
 		episodeService: episodeService,
 	}
@@ -32,7 +32,7 @@ func NewService(
 type Service struct {
 	logger         *slog.Logger
 	myListService  *mylist.Service
-	embyService    *emby.Service
+	mediaServer    mediaserver.Server
 	scanSource     *scansource.Service
 	episodeService *episode.Service
 }
@@ -61,12 +61,12 @@ func (s *Service) RunOnce(
 	maps.Copy(showIDs, s.scanSource.GetForcedShowIDs())
 
 	for showID := range showIDs {
-		lastWatchedEpisodeNumberInLibrary, translationID, err := s.embyService.GetLastWatchedEpisodeNumber(ctx, showID)
+		lastWatchedEpisodeNumberInLibrary, translationID, err := s.mediaServer.GetLastWatchedEpisodeNumber(ctx, showID)
 		if err != nil {
-			if errors.Is(err, emby.ErrEmbyItemNotFound) {
+			if errors.Is(err, mediaserver.ErrItemNotFound) {
 				s.logger.DebugContext(
 					ctx,
-					"Translation not found in Emby items, probably will be indexed later",
+					"Translation not found in media server items, probably will be indexed later",
 					slog.Int64("show_id", int64(showID)),
 				)
 
@@ -75,7 +75,7 @@ func (s *Service) RunOnce(
 
 			s.logger.ErrorContext(
 				ctx,
-				"Failed to get last watched episode number in Emby library",
+				"Failed to get last watched episode number in media server library",
 				slog.Int64("show_id", int64(showID)),
 				slog.String("error", err.Error()),
 			)
@@ -88,7 +88,7 @@ func (s *Service) RunOnce(
 		if lastWatchedEpisodeNumberOnAnime365 >= lastWatchedEpisodeNumberInLibrary {
 			s.logger.DebugContext(
 				ctx,
-				"Skipping show because list in Anime 365 has larger episode number than last watched in Emby",
+				"Skipping show because list in Anime 365 has larger episode number than last watched in media server",
 				slog.Int64("show_id", int64(showID)),
 				slog.Int64("last_watched_episode_number_on_anime365", lastWatchedEpisodeNumberOnAnime365),
 				slog.Int64("last_watched_episode_number_in_library", lastWatchedEpisodeNumberInLibrary),

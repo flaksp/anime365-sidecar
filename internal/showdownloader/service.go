@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"maps"
 
-	"github.com/flaksp/anime365-sidecar/internal/emby"
 	"github.com/flaksp/anime365-sidecar/internal/episodedownloader"
+	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/scansource"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -19,7 +19,7 @@ func NewService(
 	logger *slog.Logger,
 	myListService *mylist.Service,
 	scanSource *scansource.Service,
-	embyService *emby.Service,
+	mediaServer mediaserver.Server,
 	episodeDownloader *episodedownloader.Service,
 ) *Service {
 	return &Service{
@@ -27,7 +27,7 @@ func NewService(
 		logger:            logger,
 		myListService:     myListService,
 		scanSource:        scanSource,
-		embyService:       embyService,
+		mediaServer:       mediaServer,
 		episodeDownloader: episodeDownloader,
 	}
 }
@@ -37,7 +37,7 @@ type Service struct {
 	logger            *slog.Logger
 	myListService     *mylist.Service
 	scanSource        *scansource.Service
-	embyService       *emby.Service
+	mediaServer       mediaserver.Server
 	episodeDownloader *episodedownloader.Service
 }
 
@@ -108,7 +108,7 @@ func (s *Service) downloadShow(
 		return ErrShowHasNoEpisodes
 	}
 
-	if err := s.embyService.CreateShowIfNotExists(
+	if err := s.mediaServer.CreateShowIfNotExists(
 		showID,
 		showEntity.TitleRomaji,
 		showEntity.MyAnimeListID,
