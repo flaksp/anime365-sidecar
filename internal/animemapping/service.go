@@ -23,6 +23,7 @@ type ExternalIDs struct {
 	IMDb             string
 	TheMovieDatabase string
 	TheTVDB          string
+	SeasonNumber     int64
 }
 
 type databaseEntry struct {
@@ -31,6 +32,10 @@ type databaseEntry struct {
 		Movie []int64 `json:"movie"`
 		TV    int64   `json:"tv"`
 	} `json:"themoviedb_id"`
+	Season struct {
+		TVDB int64 `json:"tvdb"`
+		TMDB int64 `json:"tmdb"`
+	} `json:"season"`
 	MyAnimeListID int64 `json:"mal_id"`
 	TheTVDB       int64 `json:"tvdb_id"`
 }
@@ -179,6 +184,14 @@ func decodeDatabase(reader io.Reader) (map[int64]ExternalIDs, error) {
 
 		if externalIDs.TheTVDB == "" && entry.TheTVDB > 0 {
 			externalIDs.TheTVDB = strconv.FormatInt(entry.TheTVDB, 10)
+		}
+
+		if externalIDs.SeasonNumber <= 0 {
+			if entry.Season.TVDB > 0 {
+				externalIDs.SeasonNumber = entry.Season.TVDB
+			} else if entry.Season.TMDB > 0 {
+				externalIDs.SeasonNumber = entry.Season.TMDB
+			}
 		}
 
 		index[entry.MyAnimeListID] = externalIDs

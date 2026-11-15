@@ -69,6 +69,7 @@ type Server interface {
 	) (map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{}, error)
 	InitializeShowMetadata(ctx context.Context, showEntity show.Show) error
 	UpdateShowMetadata(ctx context.Context, showEntity show.Show) error
+	UpdateSeasonMetadata(ctx context.Context, showEntity show.Show) error
 	UpdateShowMetadataFromShikimori(
 		ctx context.Context,
 		showID show.Anime365SeriesID,

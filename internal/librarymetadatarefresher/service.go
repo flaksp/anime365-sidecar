@@ -76,6 +76,13 @@ func (s *Service) RunOnceForItemsWithoutMetadata(ctx context.Context) error {
 			)
 		}
 
+		if err := s.mediaServer.UpdateSeasonMetadata(ctx, showEntity); err != nil {
+			s.logger.WarnContext(ctx, "Failed to update season metadata in media server",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
 		if err := s.downloadPosterIfNotExists(ctx, showEntity); err != nil {
 			s.logger.WarnContext(ctx, "Failed to download poster",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
@@ -211,6 +218,13 @@ func (s *Service) RunOnceForItemsWithMetadata(ctx context.Context) error {
 			s.logger.WarnContext(
 				ctx,
 				"Failed to update show in media server with Shikimori metadata, this metadata was not updated",
+				slog.Int64("show_id", int64(showEntity.Anime365ID)),
+				slog.String("error", err.Error()),
+			)
+		}
+
+		if err := s.mediaServer.UpdateSeasonMetadata(ctx, showEntity); err != nil {
+			s.logger.WarnContext(ctx, "Failed to update season metadata in media server",
 				slog.Int64("show_id", int64(showEntity.Anime365ID)),
 				slog.String("error", err.Error()),
 			)
