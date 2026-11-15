@@ -1,0 +1,14 @@
+package: jellyfinclient
+output: pkg/jellyfinclient/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  prefer-skip-optional-pointer-on-container-types: true
+  include-operation-ids:
+    - GetItems
+    - GetSessions
+    - GetVirtualFolders
+    - UpdateItem
+    - RefreshItem
+    - RefreshLibrary

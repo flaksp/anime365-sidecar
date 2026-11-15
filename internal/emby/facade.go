@@ -7,24 +7,17 @@ import (
 	"log/slog"
 	"math"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
+	"github.com/flaksp/anime365-sidecar/internal/libraryfiles"
 	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
 	"github.com/flaksp/anime365-sidecar/internal/show"
-	"github.com/flaksp/anime365-sidecar/pkg/authorslistformatter"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
-	"github.com/flaksp/anime365-sidecar/pkg/filename"
-	"github.com/flaksp/anime365-sidecar/pkg/filesystemutils"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-	"golang.org/x/text/language/display"
 )
 
 var _ mediaserver.Server = (*Service)(nil)
@@ -43,12 +36,14 @@ func NewService(
 	embyPublicURL *url.URL,
 	animeMappingService *animemapping.Service,
 ) *Service {
+	manifestService := manifest.NewService(downloadsDirectory, logger)
+
 	return &Service{
 		logger:              logger,
+		manifestService:     manifestService,
 		libraryID:           libraryID,
-		manifestService:     manifest.NewService(downloadsDirectory, logger),
+		Library:             libraryfiles.NewLibrary(downloadsDirectory, manifestService),
 		embyClient:          embyClient,
-		downloadsDirectory:  downloadsDirectory,
 		embyUserID:          embyUserID,
 		embyPublicURL:       embyPublicURL,
 		animeMappingService: animeMappingService,
@@ -56,25 +51,25 @@ func NewService(
 }
 
 type Service struct {
-	libraryID                string
-	logger                   *slog.Logger
-	manifestService          *manifest.Service
+	manifestService *manifest.Service
+	libraryID       string
+	logger          *slog.Logger
+	*libraryfiles.Library
 	embyClient               *embyclient.ClientWithResponses
 	embyPublicURL            *url.URL
 	animeMappingService      *animemapping.Service
-	downloadsDirectory       string
 	embyLibraryItemID        string
 	embyLibraryRootDirectory string
 	embyUserID               string
 }
 
-// Initialize detects the configured library before loading the local manifest.
+// Initialize loads adapter-owned state before discovering the configured library.
 func (s *Service) Initialize(ctx context.Context) error {
-	if err := s.detectLibraryDirectory(ctx, s.libraryID); err != nil {
+	if err := s.manifestService.LoadFromDisk(ctx); err != nil {
 		return err
 	}
 
-	return s.manifestService.LoadFromDisk(ctx)
+	return s.detectLibraryDirectory(ctx, s.libraryID)
 }
 
 func (s *Service) detectLibraryDirectory(ctx context.Context, libraryID string) error {
@@ -111,59 +106,6 @@ func (s *Service) detectLibraryDirectory(ctx context.Context, libraryID string) 
 	return fmt.Errorf("failed to detect library metadata, library with id \"%s\" does not exist", libraryID)
 }
 
-func (s *Service) CreateShowIfNotExists(
-	showID show.Anime365SeriesID,
-	showTitle string,
-	myAnimeListID show.MyAnimeListID,
-) error {
-	showDirectoryName, showManifestEntryExists := s.manifestService.GetShowDirectoryName(showID)
-	if !showManifestEntryExists {
-		computedShowDirectoryName := filename.Clean(showTitle)
-		computedShowDirectoryName = strings.Join(strings.Fields(computedShowDirectoryName), " ")
-		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
-		computedShowDirectoryName = fmt.Sprintf("%s [mal-%d]", computedShowDirectoryName, myAnimeListID)
-
-		showDirectoryName = computedShowDirectoryName
-	}
-
-	showDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, showDirectoryName)
-
-	if err := s.createDirectoryIfNotExists(showDirectoryAbsolutePath); err != nil {
-		return fmt.Errorf("create show directory: %w", err)
-	}
-
-	if err := s.createDirectoryIfNotExists(filepath.Join(showDirectoryAbsolutePath, "Season 01")); err != nil {
-		return fmt.Errorf("create season directory: %w", err)
-	}
-
-	if !showManifestEntryExists {
-		if err := s.manifestService.InsertShowEntry(showID, showDirectoryName, myAnimeListID); err != nil {
-			return fmt.Errorf("failed to set show entry: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (s *Service) GetTranslationQuality(
-	showID show.Anime365SeriesID,
-	episodeID episode.Anime365EpisodeID,
-	translationID episode.Anime365TranslationID,
-) (int64, bool) {
-	return s.manifestService.GetTranslationQuality(
-		showID,
-		episodeID,
-		translationID,
-	)
-}
-
-func (s *Service) GetTranslationIDs(
-	showID show.Anime365SeriesID,
-	episodeID episode.Anime365EpisodeID,
-) map[episode.Anime365TranslationID]struct{} {
-	return s.manifestService.GetTranslationIDs(showID, episodeID)
-}
-
 func (s *Service) RefreshLibrary(ctx context.Context) error {
 	return embyResponseError(s.embyClient.PostLibraryRefreshWithResponse(ctx))
 }
@@ -174,12 +116,12 @@ func (s *Service) DeleteTranslationIfNotPlaying(
 	episodeID episode.Anime365EpisodeID,
 	translationID episode.Anime365TranslationID,
 ) (bool, error) {
-	embyItemID, hasEmbyItemID := s.manifestService.GetTranslationEmbyItemID(
+	embyItemID, hasItemID := s.manifestService.GetTranslationItemID(
 		showID,
 		episodeID,
 		translationID,
 	)
-	if hasEmbyItemID {
+	if hasItemID {
 		sessions, err := getEmbyJSONResponse[[]embyclient.SessionSessionInfo](
 			s.embyClient.GetSessionsWithResponse(ctx, nil),
 		)
@@ -213,119 +155,6 @@ func getPlayingItemIDs(sessions []embyclient.SessionSessionInfo) map[string]stru
 	return playingItemIDs
 }
 
-func (s *Service) DeleteTranslation(
-	showID show.Anime365SeriesID,
-	episodeID episode.Anime365EpisodeID,
-	translationID episode.Anime365TranslationID,
-) error {
-	videoFileRelativePath, subtitlesFileRelativePath, exists := s.manifestService.GetTranslationRelativePaths(
-		showID,
-		episodeID,
-		translationID,
-	)
-	if exists {
-		videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
-
-		if err := filesystemutils.DeleteFileIfExists(videoFileAbsolutePath); err != nil {
-			return fmt.Errorf("delete video file: %w", err)
-		}
-
-		if subtitlesFileRelativePath != "" {
-			subtitlesFileAbsolutePath := filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
-
-			if err := filesystemutils.DeleteFileIfExists(subtitlesFileAbsolutePath); err != nil {
-				return fmt.Errorf("delete subtitle file: %w", err)
-			}
-		}
-	}
-
-	if err := s.manifestService.DeleteTranslation(showID, episodeID, translationID); err != nil {
-		return fmt.Errorf("delete translation from manifest: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
-	showEntity show.Show,
-	episodeEntity episode.Episode,
-	translationEntity episode.Translation,
-	translationMedia episode.TranslationMedia,
-) (string, string, error) {
-	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showEntity.Anime365ID)
-	if !exists {
-		return "", "", errors.New("show does not exists in manifest")
-	}
-
-	var (
-		translationFileName              string
-		translationDirectoryRelativePath string
-	)
-
-	if episodeEntity.IsTrailer || episodeEntity.IsSpecial {
-		if episodeEntity.IsTrailer {
-			translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 01", "trailers")
-		} else {
-			translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 00")
-		}
-
-		translationFileName = fmt.Sprintf(
-			"%s - %s %s by %s, t%d",
-			episodeEntity.EpisodeLabel,
-			display.English.Languages().Name(translationEntity.Variant.Language),
-			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsListForFileName(translationEntity.Authors),
-			translationEntity.Anime365ID,
-		)
-	} else {
-		translationFileName = fmt.Sprintf(
-			"%s S1E%d - %s %s by %s, t%d",
-			showEntity.TitleRomaji,
-			episodeEntity.EpisodeNumber,
-			display.English.Languages().Name(translationEntity.Variant.Language),
-			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsListForFileName(translationEntity.Authors),
-			translationEntity.Anime365ID,
-		)
-
-		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 01")
-	}
-
-	translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
-	if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
-		return "", "", fmt.Errorf("failed to create translation directory: %w", err)
-	}
-
-	translationFileName = filename.Clean(translationFileName)
-	translationFileName = strings.Join(strings.Fields(translationFileName), " ")
-	translationFileName = strings.TrimSpace(translationFileName)
-
-	videoFileRelativePath := filepath.Join(translationDirectoryRelativePath, translationFileName+".mp4")
-	videoFileAbsolutePath := filepath.Join(s.downloadsDirectory, videoFileRelativePath)
-
-	var (
-		subtitlesFileRelativePath string
-		subtitlesFileAbsolutePath string
-	)
-
-	if translationMedia.SubtitlesURL != nil {
-		translationLanguage, _ := translationEntity.Variant.Language.Base()
-
-		subtitlesFileRelativePath = filepath.Join(
-			translationDirectoryRelativePath,
-			fmt.Sprintf(
-				"%s.%s.ass",
-				translationFileName,
-				translationLanguage.String(),
-			),
-		)
-
-		subtitlesFileAbsolutePath = filepath.Join(s.downloadsDirectory, subtitlesFileRelativePath)
-	}
-
-	return videoFileAbsolutePath, subtitlesFileAbsolutePath, nil
-}
-
 func (s *Service) SaveTranslationPaths(
 	ctx context.Context,
 	showID show.Anime365SeriesID,
@@ -335,7 +164,7 @@ func (s *Service) SaveTranslationPaths(
 	subtitlesFileAbsolutePath string,
 	height int64,
 ) error {
-	videoFileRelativePath, err := filepath.Rel(s.downloadsDirectory, videoFileAbsolutePath)
+	videoFileRelativePath, err := filepath.Rel(s.Directory, videoFileAbsolutePath)
 	if err != nil {
 		return fmt.Errorf("failed to get video file relative path: %w", err)
 	}
@@ -343,7 +172,7 @@ func (s *Service) SaveTranslationPaths(
 	var subtitlesFileRelativePath string
 
 	if subtitlesFileAbsolutePath != "" {
-		subtitlesFileRelativePath, err = filepath.Rel(s.downloadsDirectory, subtitlesFileAbsolutePath)
+		subtitlesFileRelativePath, err = filepath.Rel(s.Directory, subtitlesFileAbsolutePath)
 		if err != nil {
 			return fmt.Errorf("failed to get subtitles file relative path: %w", err)
 		}
@@ -483,7 +312,7 @@ func (s *Service) InitializeShowMetadata(
 		return fmt.Errorf("failed to refresh missing images for show item %s: %w", value(embyItem.Id), err)
 	}
 
-	if err := s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, value(embyItem.Id)); err != nil {
+	if err := s.manifestService.SetShowItemID(showFromAnime365.Anime365ID, value(embyItem.Id)); err != nil {
 		return fmt.Errorf("failed to set show emby item id in manifest %d: %w", showFromAnime365.Anime365ID, err)
 	}
 
@@ -808,7 +637,7 @@ func (s *Service) InitializeTranslationMetadata(
 		return fmt.Errorf("failed to update translation item %s: %w", value(embyItem.Id), err)
 	}
 
-	if err := s.manifestService.SetTranslationEmbyItemID(
+	if err := s.manifestService.SetTranslationItemID(
 		showID,
 		episodeEntity.Anime365ID,
 		translationEntity.Anime365ID,
@@ -887,78 +716,6 @@ func (s *Service) UpdateTranslationMetadata(
 			slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
 			slog.String("emby_item_id", value(embyItem.Id)),
 		)
-	}
-
-	return nil
-}
-
-func (s *Service) GetIDs() map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{} {
-	return s.manifestService.GetIDs()
-}
-
-func (s *Service) GetMyAnimeListIDToShowIDMap() map[show.MyAnimeListID]show.Anime365SeriesID {
-	return s.manifestService.GetMyAnimeListIDToShowIDMap()
-}
-
-func (s *Service) IsPosterExists(showID show.Anime365SeriesID, posterURL *url.URL) (bool, error) {
-	fileAbsolutePath, err := s.ComputePosterFileAbsolutePath(showID, posterURL)
-	if err != nil {
-		return false, fmt.Errorf("failed to compute poster file absolute path: %w", err)
-	}
-
-	fileExists, err := filesystemutils.FileExists(fileAbsolutePath)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if file exists: %w", err)
-	}
-
-	return fileExists, nil
-}
-
-func (s *Service) ComputePosterFileAbsolutePath(showID show.Anime365SeriesID, posterURL *url.URL) (string, error) {
-	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showID)
-	if !exists {
-		return "", errors.New("show directory not found")
-	}
-
-	fileAbsolutePath := filepath.Join(s.downloadsDirectory, showDirectoryName, "poster"+filepath.Ext(posterURL.Path))
-
-	return fileAbsolutePath, nil
-}
-
-func (s *Service) IsBackdropExists(
-	showID show.Anime365SeriesID,
-	screenshotID string,
-) bool {
-	return s.manifestService.IsBackdropExists(showID, screenshotID)
-}
-
-func (s *Service) ComputeBackdropFileAbsolutePath(
-	showID show.Anime365SeriesID,
-	imageURL *url.URL,
-) (string, error) {
-	showDirectoryName, exists := s.manifestService.GetShowDirectoryName(showID)
-	if !exists {
-		return "", errors.New("show directory not found")
-	}
-
-	backdropCount := s.manifestService.BackdropCount(showID)
-
-	fileAbsolutePath := filepath.Join(
-		s.downloadsDirectory,
-		showDirectoryName,
-		fmt.Sprintf("backdrop%d%s", backdropCount+1, filepath.Ext(imageURL.Path)),
-	)
-
-	return fileAbsolutePath, nil
-}
-
-func (s *Service) AddBackdrop(
-	showID show.Anime365SeriesID,
-	screenshotID string,
-) error {
-	err := s.manifestService.AddBackdrop(showID, screenshotID)
-	if err != nil {
-		return errors.New("failed to add backdrop to manifest")
 	}
 
 	return nil
@@ -1057,8 +814,8 @@ func (s *Service) GetIDsWithoutMetadata(
 			continue
 		}
 
-		_, hasEmbyItemID := s.manifestService.GetTranslationEmbyItemID(showID, episodeID, translationID)
-		if hasEmbyItemID {
+		_, hasItemID := s.manifestService.GetTranslationItemID(showID, episodeID, translationID)
+		if hasItemID {
 			continue // entry already has emby item id, so it has initial metadata
 		}
 
@@ -1112,8 +869,8 @@ func (s *Service) GetIDsWithMetadata(
 			continue
 		}
 
-		_, hasEmbyItemID := s.manifestService.GetTranslationEmbyItemID(showID, episodeID, translationID)
-		if !hasEmbyItemID {
+		_, hasItemID := s.manifestService.GetTranslationItemID(showID, episodeID, translationID)
+		if !hasItemID {
 			continue // entry already does not have emby item id, which means it did not receive initial metadata
 		}
 
@@ -1129,16 +886,6 @@ func (s *Service) GetIDsWithMetadata(
 	}
 
 	return result, nil
-}
-
-func (s *Service) GetShowIDByDirectoryName(directoryName string) (show.Anime365SeriesID, bool) {
-	return s.manifestService.GetShowIDByDirectoryName(directoryName)
-}
-
-func (s *Service) GetIDsByVideoFileRelativePath(
-	videoFileRelativePath string,
-) (show.Anime365SeriesID, episode.Anime365EpisodeID, episode.Anime365TranslationID, bool) {
-	return s.manifestService.GetIDsByVideoFileRelativePath(videoFileRelativePath)
 }
 
 func (s *Service) GetEpisodeMetadataForNotification(
@@ -1204,42 +951,6 @@ func (s *Service) GetEpisodeMetadataForNotification(
 	}
 
 	return result, nil
-}
-
-var errNotDirectory = errors.New("not a directory")
-
-func (s *Service) directoryExists(absolutePath string) (bool, error) {
-	info, err := os.Stat(absolutePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("failed to check directory: %w", err)
-	}
-
-	if info.IsDir() {
-		return true, nil
-	}
-
-	return false, errNotDirectory
-}
-
-func (s *Service) createDirectoryIfNotExists(absolutePath string) error {
-	directoryExists, err := s.directoryExists(absolutePath)
-	if err != nil {
-		return fmt.Errorf("failed to check directory exists: %w", err)
-	}
-
-	if directoryExists {
-		return nil
-	}
-
-	if err := os.Mkdir(absolutePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	return nil
 }
 
 // getEmbyShowPath returns show directory path as it should be in Emby library.
@@ -1373,18 +1084,6 @@ func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDt
 	}
 
 	return nil
-}
-
-func formatAuthorsListForFileName(authorsList []string) string {
-	formattedAuthorsList := authorslistformatter.Format(authorsList)
-
-	replacer := strings.NewReplacer("(", " ", ")", " ", "[", " ", "]", " ", " - ", " ")
-
-	formattedAuthorsList = replacer.Replace(formattedAuthorsList)
-	formattedAuthorsList = strings.Join(strings.Fields(formattedAuthorsList), " ")
-	formattedAuthorsList = strings.TrimSpace(formattedAuthorsList)
-
-	return formattedAuthorsList
 }
 
 func areStringSliceAndNameLongIdPairSliceEqual(a []string, b []embyclient.NameLongIdPair) bool {

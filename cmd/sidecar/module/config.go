@@ -1,7 +1,6 @@
 package module
 
 import (
-	"errors"
 	"os"
 
 	"github.com/caarlos0/env/v11"
@@ -39,8 +38,8 @@ var Config = func() (*config.Env, error) {
 		return nil, err
 	}
 
-	if config.WatchedEpisodesCleanupAfter < 0 {
-		return nil, errors.New("SIDECAR_WATCHED_EPISODES_CLEANUP_AFTER must not be negative")
+	if err := config.Validate(); err != nil {
+		return nil, err
 	}
 
 	return &config, nil

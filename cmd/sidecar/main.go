@@ -25,7 +25,6 @@ func main() {
 			return &fxevent.SlogLogger{Logger: logger}
 		}),
 		fx.Provide(module.Anime365Client),
-		fx.Provide(module.EmbyClient),
 		fx.Provide(module.ShikimoriClient),
 		fx.Provide(module.AnimeMappingService),
 		fx.Provide(module.NotificationSender),

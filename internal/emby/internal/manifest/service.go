@@ -20,7 +20,7 @@ type showManifestEntry struct {
 	Screenshots   map[string]bool                 `json:"screenshots"`
 	Episodes      map[string]episodeManifestEntry `json:"episodes"`
 	DirectoryName string                          `json:"directory_name"`
-	EmbyItemID    string                          `json:"emby_item_id,omitempty"`
+	ItemID        string                          `json:"emby_item_id,omitempty"`
 	MyAnimeListID int64                           `json:"my_anime_list_id,omitempty"`
 }
 
@@ -31,7 +31,7 @@ type episodeManifestEntry struct {
 type translationManifestEntry struct {
 	VideoFileRelativePath     string `json:"video_file_relative_path"`
 	SubtitlesFileRelativePath string `json:"subtitles_file_relative_path,omitempty"`
-	EmbyItemID                string `json:"emby_item_id,omitempty"`
+	ItemID                    string `json:"emby_item_id,omitempty"`
 	Height                    int64  `json:"height"`
 }
 
@@ -57,6 +57,12 @@ type Service struct {
 }
 
 func (s *Service) LoadFromDisk(ctx context.Context) error {
+	if _, err := os.Stat(filepath.Join(s.downloadsDirectory, "manifest-jellyfin.json")); err == nil {
+		return errors.New("library belongs to another media server; switching media servers is not supported")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("check library media server: %w", err)
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -79,6 +85,17 @@ func (s *Service) LoadFromDisk(ctx context.Context) error {
 		)
 
 		return err
+	}
+
+	var owner struct {
+		MediaServer string `json:"media_server"`
+	}
+	if err := json.Unmarshal(data, &owner); err != nil {
+		return fmt.Errorf("read manifest owner: %w", err)
+	}
+
+	if owner.MediaServer != "" && owner.MediaServer != "emby" {
+		return errors.New("manifest does not belong to Emby; switching media servers is not supported")
 	}
 
 	if err := json.Unmarshal(data, s.inMemoryManifest); err != nil {
@@ -528,9 +545,18 @@ func (s *Service) GetIDsByVideoFileRelativePath(
 	return 0, 0, 0, false
 }
 
-func (s *Service) SetShowEmbyItemID(
+func (s *Service) GetShowItemID(showID show.Anime365SeriesID) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entry, exists := s.inMemoryManifest.Shows[strconv.FormatInt(int64(showID), 10)]
+
+	return entry.ItemID, exists && entry.ItemID != ""
+}
+
+func (s *Service) SetShowItemID(
 	showID show.Anime365SeriesID,
-	embyItemID string,
+	itemID string,
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -542,7 +568,7 @@ func (s *Service) SetShowEmbyItemID(
 		return fmt.Errorf("no show found with show ID %d", showID)
 	}
 
-	showEntry.EmbyItemID = embyItemID
+	showEntry.ItemID = itemID
 
 	s.inMemoryManifest.Shows[showIDStr] = showEntry
 
@@ -553,11 +579,11 @@ func (s *Service) SetShowEmbyItemID(
 	return nil
 }
 
-func (s *Service) SetTranslationEmbyItemID(
+func (s *Service) SetTranslationItemID(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,
 	translationID episode.Anime365TranslationID,
-	embyItemID string,
+	itemID string,
 ) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -581,7 +607,7 @@ func (s *Service) SetTranslationEmbyItemID(
 		return fmt.Errorf("no translation found with translation ID %d", translationID)
 	}
 
-	translationEntry.EmbyItemID = embyItemID
+	translationEntry.ItemID = itemID
 
 	episodeEntry.Translations[translationIDStr] = translationEntry
 
@@ -596,7 +622,7 @@ func (s *Service) SetTranslationEmbyItemID(
 	return nil
 }
 
-func (s *Service) GetTranslationEmbyItemID(
+func (s *Service) GetTranslationItemID(
 	showID show.Anime365SeriesID,
 	episodeID episode.Anime365EpisodeID,
 	translationID episode.Anime365TranslationID,
@@ -623,11 +649,11 @@ func (s *Service) GetTranslationEmbyItemID(
 		return "", false
 	}
 
-	if translationEntry.EmbyItemID == "" {
+	if translationEntry.ItemID == "" {
 		return "", false
 	}
 
-	return translationEntry.EmbyItemID, true
+	return translationEntry.ItemID, true
 }
 
 func (s *Service) saveToDisk() error {

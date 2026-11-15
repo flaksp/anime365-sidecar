@@ -9,3 +9,9 @@ generate-emby-client:
 
 update-emby-openapi:
 	curl --fail --location --output api/emby/openapi.json https://raw.githubusercontent.com/MediaBrowser/Emby.SDK/master/Resources/OpenApi/openapi_v3.json
+
+generate-jellyfin-client:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest --config api/jellyfin/oapi-codegen.yaml api/jellyfin/openapi.json
+
+update-jellyfin-openapi:
+	curl --fail --location --output api/jellyfin/openapi.json https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json
