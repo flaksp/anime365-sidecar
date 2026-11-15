@@ -105,7 +105,7 @@ func (s *Service) CreateShowIfNotExists(
 		computedShowDirectoryName := filename.Clean(showTitle)
 		computedShowDirectoryName = strings.Join(strings.Fields(computedShowDirectoryName), " ")
 		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
-		computedShowDirectoryName = fmt.Sprintf("%s [anime365id=%d]", computedShowDirectoryName, showID)
+		computedShowDirectoryName = fmt.Sprintf("%s [mal-%d]", computedShowDirectoryName, myAnimeListID)
 
 		showDirectoryName = computedShowDirectoryName
 	}
@@ -114,6 +114,10 @@ func (s *Service) CreateShowIfNotExists(
 
 	if err := s.createDirectoryIfNotExists(showDirectoryAbsolutePath); err != nil {
 		return fmt.Errorf("create show directory: %w", err)
+	}
+
+	if err := s.createDirectoryIfNotExists(filepath.Join(showDirectoryAbsolutePath, "Season 01")); err != nil {
+		return fmt.Errorf("create season directory: %w", err)
 	}
 
 	if !showManifestEntryExists {
@@ -240,28 +244,11 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		translationDirectoryRelativePath string
 	)
 
-	if episodeEntity.IsTrailer {
-		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Trailers")
-		translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
-
-		if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
-			return "", "", fmt.Errorf("failed to create trailers directory: %w", err)
-		}
-
-		translationFileName = fmt.Sprintf(
-			"%s - %s %s by %s, ID %d",
-			episodeEntity.EpisodeLabel,
-			display.English.Languages().Name(translationEntity.Variant.Language),
-			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
-			formatAuthorsListForFileName(translationEntity.Authors),
-			translationEntity.Anime365ID,
-		)
-	} else if episodeEntity.IsSpecial {
-		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Specials")
-		translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
-
-		if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
-			return "", "", fmt.Errorf("failed to create specials directory: %w", err)
+	if episodeEntity.IsTrailer || episodeEntity.IsSpecial {
+		if episodeEntity.IsTrailer {
+			translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 01", "trailers")
+		} else {
+			translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 00")
 		}
 
 		translationFileName = fmt.Sprintf(
@@ -274,7 +261,8 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 		)
 	} else {
 		translationFileName = fmt.Sprintf(
-			"E%d - %s %s by %s, t%d",
+			"%s S1E%d - %s %s by %s, t%d",
+			showEntity.TitleRomaji,
 			episodeEntity.EpisodeNumber,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
@@ -282,7 +270,12 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 			translationEntity.Anime365ID,
 		)
 
-		translationDirectoryRelativePath = showDirectoryName
+		translationDirectoryRelativePath = filepath.Join(showDirectoryName, "Season 01")
+	}
+
+	translationDirectoryAbsolutePath := filepath.Join(s.downloadsDirectory, translationDirectoryRelativePath)
+	if err := s.createDirectoryIfNotExists(translationDirectoryAbsolutePath); err != nil {
+		return "", "", fmt.Errorf("failed to create translation directory: %w", err)
 	}
 
 	translationFileName = filename.Clean(translationFileName)
