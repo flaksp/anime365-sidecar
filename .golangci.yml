@@ -60,9 +60,8 @@ linters:
         - importShadow
 
   exclusions:
+    generated: strict
     warn-unused: true
-    paths:
-      - "pkg/embyclient/model.+\\.go$"
 
 formatters:
   enable:
@@ -78,6 +77,5 @@ formatters:
       max-len: 120
 
   exclusions:
+    generated: strict
     warn-unused: true
-    paths:
-      - "pkg/embyclient/model.+\\.go$"

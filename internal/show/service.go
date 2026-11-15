@@ -13,7 +13,7 @@ import (
 
 func NewService(
 	anime365Client *anime365client.Client,
-	embyClient *embyclient.Client,
+	embyClient *embyclient.ClientWithResponses,
 	shikimoriClient *shikimoriclient.Client,
 	logger *slog.Logger,
 ) *Service {
@@ -27,7 +27,7 @@ func NewService(
 
 type Service struct {
 	anime365Client  *anime365client.Client
-	embyClient      *embyclient.Client
+	embyClient      *embyclient.ClientWithResponses
 	shikimoriClient *shikimoriclient.Client
 	logger          *slog.Logger
 }

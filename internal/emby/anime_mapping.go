@@ -34,11 +34,11 @@ func applyExternalProviderIDs(embyItem *embyclient.BaseItemDto, externalIDs anim
 	}
 
 	if embyItem.ProviderIds == nil {
-		embyItem.ProviderIds = new(map[string]string)
+		embyItem.ProviderIds = new(make(embyclient.ProviderIdDictionary))
 	}
 
 	if *embyItem.ProviderIds == nil {
-		*embyItem.ProviderIds = make(map[string]string)
+		*embyItem.ProviderIds = make(embyclient.ProviderIdDictionary)
 	}
 
 	providerIDs := *embyItem.ProviderIds

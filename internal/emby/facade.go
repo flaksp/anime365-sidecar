@@ -32,7 +32,7 @@ func NewService(
 	downloadsDirectory string,
 	embyUserID string,
 	logger *slog.Logger,
-	embyClient *embyclient.Client,
+	embyClient *embyclient.ClientWithResponses,
 	embyPublicURL *url.URL,
 	animeMappingService *animemapping.Service,
 ) *Service {
@@ -50,7 +50,7 @@ func NewService(
 type Service struct {
 	logger                   *slog.Logger
 	manifestService          *manifest.Service
-	embyClient               *embyclient.Client
+	embyClient               *embyclient.ClientWithResponses
 	embyPublicURL            *url.URL
 	animeMappingService      *animemapping.Service
 	downloadsDirectory       string
@@ -64,27 +64,29 @@ func (s *Service) LoadManifestFromDisk(ctx context.Context) error {
 }
 
 func (s *Service) DetectLibraryDirectoryFromEmby(ctx context.Context, libraryID string) error {
-	virtualFolderDTOs, err := s.embyClient.GetLibraryVirtualFolders(ctx)
+	virtualFolderDTOs, err := getEmbyJSONResponse[embyclient.QueryResultVirtualFolderInfo](
+		s.embyClient.GetLibraryVirtualfoldersQueryWithResponse(ctx, nil),
+	)
 	if err != nil {
 		return err
 	}
 
-	for _, virtualFolderDTO := range virtualFolderDTOs {
-		if virtualFolderDTO.ItemId != libraryID {
+	for _, virtualFolderDTO := range virtualFolderDTOs.Items {
+		if value(virtualFolderDTO.ItemId) != libraryID {
 			continue
 		}
 
 		if len(virtualFolderDTO.Locations) == 0 {
-			return fmt.Errorf("expected library location list not empty for %s", virtualFolderDTO.Name)
+			return fmt.Errorf("expected library location list not empty for %s", value(virtualFolderDTO.Name))
 		}
 
-		s.embyLibraryItemID = virtualFolderDTO.ItemId
+		s.embyLibraryItemID = value(virtualFolderDTO.ItemId)
 		s.embyLibraryRootDirectory = virtualFolderDTO.Locations[0]
 
 		s.logger.InfoContext(
 			ctx,
 			"Detected library root metadata",
-			slog.String("library_item_name", virtualFolderDTO.Name),
+			slog.String("library_item_name", value(virtualFolderDTO.Name)),
 			slog.String("library_item_id", s.embyLibraryItemID),
 			slog.String("library_root_directory", s.embyLibraryRootDirectory),
 		)
@@ -149,7 +151,7 @@ func (s *Service) GetTranslationIDs(
 }
 
 func (s *Service) RefreshLibrary(ctx context.Context) error {
-	return s.embyClient.RefreshLibrary(ctx)
+	return embyResponseError(s.embyClient.PostLibraryRefreshWithResponse(ctx))
 }
 
 func (s *Service) DeleteTranslationIfNotPlaying(
@@ -164,7 +166,9 @@ func (s *Service) DeleteTranslationIfNotPlaying(
 		translationID,
 	)
 	if hasEmbyItemID {
-		sessions, err := s.embyClient.GetSessions(ctx)
+		sessions, err := getEmbyJSONResponse[[]embyclient.SessionSessionInfo](
+			s.embyClient.GetSessionsWithResponse(ctx, nil),
+		)
 		if err != nil {
 			return false, fmt.Errorf("get active Emby sessions: %w", err)
 		}
@@ -185,11 +189,11 @@ func getPlayingItemIDs(sessions []embyclient.SessionSessionInfo) map[string]stru
 	playingItemIDs := make(map[string]struct{})
 
 	for _, session := range sessions {
-		if session.NowPlayingItem == nil || session.NowPlayingItem.Id == "" {
+		if session.NowPlayingItem == nil || value(session.NowPlayingItem.Id) == "" {
 			continue
 		}
 
-		playingItemIDs[session.NowPlayingItem.Id] = struct{}{}
+		playingItemIDs[value(session.NowPlayingItem.Id)] = struct{}{}
 	}
 
 	return playingItemIDs
@@ -341,7 +345,7 @@ func (s *Service) SaveTranslationPaths(
 		return fmt.Errorf("failed to add translation entry to manifest: %w", err)
 	}
 
-	if err := s.embyClient.RefreshLibrary(ctx); err != nil {
+	if err := s.RefreshLibrary(ctx); err != nil {
 		s.logger.WarnContext(ctx, "Failed to refresh library, but it's not critical")
 	}
 
@@ -351,18 +355,18 @@ func (s *Service) SaveTranslationPaths(
 var oneOrMoreLineBreaksRegexp = regexp.MustCompile(`\n+`)
 
 var showLockedFields = []embyclient.MetadataFields{
-	embyclient.NAME_MetadataFields,
-	embyclient.ORIGINAL_TITLE_MetadataFields,
-	embyclient.COMMUNITY_RATING_MetadataFields,
-	embyclient.OVERVIEW_MetadataFields,
-	embyclient.GENRES_MetadataFields,
-	embyclient.SORT_NAME_MetadataFields,
-	embyclient.STUDIOS_MetadataFields,
-	embyclient.RUNTIME_MetadataFields,
-	embyclient.OFFICIAL_RATING_MetadataFields,
-	embyclient.CAST_MetadataFields,
-	embyclient.TAGLINE_MetadataFields,
-	embyclient.TAGS_MetadataFields,
+	embyclient.Name,
+	embyclient.OriginalTitle,
+	embyclient.CommunityRating,
+	embyclient.Overview,
+	embyclient.Genres,
+	embyclient.SortName,
+	embyclient.Studios,
+	embyclient.Runtime,
+	embyclient.OfficialRating,
+	embyclient.Cast,
+	embyclient.Tagline,
+	embyclient.Tags,
 }
 
 // InitialUpdateShowMetadataWithAnime365Metadata updates Emby item with metadata from Anime 365.
@@ -393,21 +397,21 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 		newName = showFromAnime365.TitleRussian
 	}
 
-	embyItem.Name = newName
-	embyItem.SortName = newName
+	embyItem.Name = new(newName)
+	embyItem.SortName = new(newName)
 
-	embyItem.OriginalTitle = showFromAnime365.TitleRomaji
+	embyItem.OriginalTitle = new(showFromAnime365.TitleRomaji)
 
 	if showFromAnime365.MyAnimeListScore > 0 {
-		embyItem.CommunityRating = float32(showFromAnime365.MyAnimeListScore)
+		embyItem.CommunityRating = new(float32(showFromAnime365.MyAnimeListScore))
 	}
 
 	if showFromAnime365.Year > 0 {
-		embyItem.ProductionYear = int32(showFromAnime365.Year)
+		embyItem.ProductionYear = new(int32(showFromAnime365.Year))
 	}
 
 	if showFromAnime365.Description != "" {
-		embyItem.Overview = oneOrMoreLineBreaksRegexp.ReplaceAllString(showFromAnime365.Description, "\n\n")
+		embyItem.Overview = new(oneOrMoreLineBreaksRegexp.ReplaceAllString(showFromAnime365.Description, "\n\n"))
 	}
 
 	if showFromAnime365.TypeLabel != "" && showFromAnime365.SeasonLabel != "" {
@@ -427,28 +431,44 @@ func (s *Service) InitialUpdateShowMetadataWithAnime365Metadata(
 
 	if len(showFromAnime365.EpisodePreviews) > 0 {
 		if showFromAnime365.IsOngoing {
-			embyItem.Status = "Continuing"
+			embyItem.Status = new("Continuing")
 		} else {
-			embyItem.Status = "Ended"
+			embyItem.Status = new("Ended")
 		}
 	}
 
 	s.applyAnimeMappingExternalIDs(&embyItem, showFromAnime365.MyAnimeListID)
 
-	embyItem.DisplayOrder = "absolute"
+	embyItem.DisplayOrder = new("absolute")
 
 	// Keep sidecar-owned textual metadata protected with field locks.
 	embyItem.LockedFields = showLockedFields
 
 	if err := s.updateItem(ctx, embyItem); err != nil {
-		return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
+		return fmt.Errorf("failed to update show item %s: %w", value(embyItem.Id), err)
 	}
 
-	if err := s.embyClient.RefreshItemImages(ctx, embyItem.Id); err != nil {
-		return fmt.Errorf("failed to refresh missing images for show item %s: %w", embyItem.Id, err)
+	if err := embyResponseError(
+		s.embyClient.PostItemsByIdRefreshWithBodyWithResponse(
+			ctx,
+			value(embyItem.Id),
+			&embyclient.PostItemsByIdRefreshParams{
+				Recursive: new(
+					false,
+				),
+				MetadataRefreshMode: new(embyclient.MetadataRefreshModeFullRefresh),
+				ImageRefreshMode:    new(embyclient.MetadataRefreshModeFullRefresh),
+				ReplaceAllMetadata:  new(false),
+				ReplaceAllImages:    new(false),
+			},
+			"application/json",
+			nil,
+		),
+	); err != nil {
+		return fmt.Errorf("failed to refresh missing images for show item %s: %w", value(embyItem.Id), err)
 	}
 
-	if err := s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, embyItem.Id); err != nil {
+	if err := s.manifestService.SetShowEmbyItemID(showFromAnime365.Anime365ID, value(embyItem.Id)); err != nil {
 		return fmt.Errorf("failed to set show emby item id in manifest %d: %w", showFromAnime365.Anime365ID, err)
 	}
 
@@ -485,35 +505,35 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 		newName = showFromAnime365.TitleRussian
 	}
 
-	if embyItem.Name != newName {
-		embyItem.Name = newName
+	if value(embyItem.Name) != newName {
+		embyItem.Name = new(newName)
 		needUpdate = true
 	}
 
-	if embyItem.SortName != newName {
-		embyItem.SortName = newName
+	if value(embyItem.SortName) != newName {
+		embyItem.SortName = new(newName)
 		needUpdate = true
 	}
 
-	if embyItem.OriginalTitle != showFromAnime365.TitleRomaji {
-		embyItem.OriginalTitle = showFromAnime365.TitleRomaji
+	if value(embyItem.OriginalTitle) != showFromAnime365.TitleRomaji {
+		embyItem.OriginalTitle = new(showFromAnime365.TitleRomaji)
 		needUpdate = true
 	}
 
-	if embyItem.CommunityRating != float32(showFromAnime365.MyAnimeListScore) {
-		embyItem.CommunityRating = float32(showFromAnime365.MyAnimeListScore)
+	if value(embyItem.CommunityRating) != float32(showFromAnime365.MyAnimeListScore) {
+		embyItem.CommunityRating = new(float32(showFromAnime365.MyAnimeListScore))
 		needUpdate = true
 	}
 
-	if embyItem.ProductionYear != int32(showFromAnime365.Year) {
-		embyItem.ProductionYear = int32(showFromAnime365.Year)
+	if value(embyItem.ProductionYear) != int32(showFromAnime365.Year) {
+		embyItem.ProductionYear = new(int32(showFromAnime365.Year))
 		needUpdate = true
 	}
 
 	newOverview := oneOrMoreLineBreaksRegexp.ReplaceAllString(showFromAnime365.Description, "\n\n")
 
-	if embyItem.Overview != newOverview {
-		embyItem.Overview = newOverview
+	if value(embyItem.Overview) != newOverview {
+		embyItem.Overview = new(newOverview)
 		needUpdate = true
 	}
 
@@ -558,8 +578,8 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 		}
 	}
 
-	if embyItem.Status != newStatus {
-		embyItem.Status = newStatus
+	if value(embyItem.Status) != newStatus {
+		embyItem.Status = new(newStatus)
 		needUpdate = true
 	}
 
@@ -572,12 +592,12 @@ func (s *Service) UpdateShowMetadataWithAnime365Metadata(
 
 	if needUpdate {
 		if err := s.updateItem(ctx, embyItem); err != nil {
-			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
+			return fmt.Errorf("failed to update show item %s: %w", value(embyItem.Id), err)
 		}
 	} else {
 		s.logger.DebugContext(ctx, "No new metadata from Anime 365 found for Emby item, skipping updating it",
 			slog.Int64("show_id", int64(showFromAnime365.Anime365ID)),
-			slog.String("emby_item_id", embyItem.Id),
+			slog.String("emby_item_id", value(embyItem.Id)),
 		)
 	}
 
@@ -614,26 +634,26 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 		switch staffMember.Role {
 		case show.StaffRoleDirector:
 			newPeople = append(newPeople, embyclient.BaseItemPerson{
-				Name:  staffMember.Name,
-				Type_: new(embyclient.DIRECTOR_PersonType),
+				Name: new(staffMember.Name),
+				Type: new(embyclient.Director),
 			})
 
 		case show.StaffRoleProducer:
 			newPeople = append(newPeople, embyclient.BaseItemPerson{
-				Name:  staffMember.Name,
-				Type_: new(embyclient.PRODUCER_PersonType),
+				Name: new(staffMember.Name),
+				Type: new(embyclient.Producer),
 			})
 
 		case show.StaffRoleScript:
 			newPeople = append(newPeople, embyclient.BaseItemPerson{
-				Name:  staffMember.Name,
-				Type_: new(embyclient.WRITER_PersonType),
+				Name: new(staffMember.Name),
+				Type: new(embyclient.Writer),
 			})
 
 		case show.StaffRoleMusic:
 			newPeople = append(newPeople, embyclient.BaseItemPerson{
-				Name:  staffMember.Name,
-				Type_: new(embyclient.COMPOSER_PersonType),
+				Name: new(staffMember.Name),
+				Type: new(embyclient.Composer),
 			})
 		}
 	}
@@ -647,7 +667,7 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 
 	for _, studio := range showFromShikimori.Studios {
 		newStudios = append(newStudios, embyclient.NameLongIdPair{
-			Name: studio,
+			Name: new(studio),
 		})
 	}
 
@@ -659,19 +679,19 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 	if showFromShikimori.AverageEpisodeDuration != 0 {
 		newRunTimeTicks := showFromShikimori.AverageEpisodeDuration.Nanoseconds() / 100
 
-		if embyItem.RunTimeTicks != newRunTimeTicks {
-			embyItem.RunTimeTicks = showFromShikimori.AverageEpisodeDuration.Nanoseconds() / 100
+		if value(embyItem.RunTimeTicks) != newRunTimeTicks {
+			embyItem.RunTimeTicks = new(showFromShikimori.AverageEpisodeDuration.Nanoseconds() / 100)
 			needUpdate = true
 		}
 	}
 
-	if embyItem.PremiereDate != showFromShikimori.PremiereDate {
-		embyItem.PremiereDate = showFromShikimori.PremiereDate
+	if value(embyItem.PremiereDate) != showFromShikimori.PremiereDate {
+		embyItem.PremiereDate = new(showFromShikimori.PremiereDate)
 		needUpdate = true
 	}
 
-	if embyItem.EndDate != showFromShikimori.StoppedAiringAt {
-		embyItem.EndDate = showFromShikimori.StoppedAiringAt
+	if value(embyItem.EndDate) != showFromShikimori.StoppedAiringAt {
+		embyItem.EndDate = new(showFromShikimori.StoppedAiringAt)
 		needUpdate = true
 	}
 
@@ -692,8 +712,8 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 		newOfficialRating = "X"
 	}
 
-	if embyItem.OfficialRating != newOfficialRating {
-		embyItem.OfficialRating = newOfficialRating
+	if value(embyItem.OfficialRating) != newOfficialRating {
+		embyItem.OfficialRating = new(newOfficialRating)
 		needUpdate = true
 	}
 
@@ -702,12 +722,12 @@ func (s *Service) UpdateShowMetadataWithShikimoriMetadata(
 
 	if needUpdate {
 		if err := s.updateItem(ctx, embyItem); err != nil {
-			return fmt.Errorf("failed to update show item %s: %w", embyItem.Id, err)
+			return fmt.Errorf("failed to update show item %s: %w", value(embyItem.Id), err)
 		}
 	} else {
 		s.logger.DebugContext(ctx, "No new metadata from Anime 365 found for Emby item, skipping updating it",
 			slog.Int64("show_id", int64(showID)),
-			slog.String("emby_item_id", embyItem.Id),
+			slog.String("emby_item_id", value(embyItem.Id)),
 		)
 	}
 
@@ -738,46 +758,46 @@ func (s *Service) InitialUpdateTranslationMetadataWithAnime365Metadata(
 		}
 	}
 
-	embyItem.Name = episodeEntity.EpisodeLabel
-	embyItem.SortName = fmt.Sprintf(
+	embyItem.Name = new(episodeEntity.EpisodeLabel)
+	embyItem.SortName = new(fmt.Sprintf(
 		"Episode %05d, priority %010d",
 		episodeEntity.EpisodeNumber,
 		translationEntity.Anime365Priority,
-	)
+	))
 
-	embyItem.ForcedSortName = embyItem.SortName
+	embyItem.ForcedSortName = new(value(embyItem.SortName))
 
 	if !translationEntity.MarkedAsActiveAt.IsZero() {
-		embyItem.PremiereDate = translationEntity.MarkedAsActiveAt
+		embyItem.PremiereDate = new(translationEntity.MarkedAsActiveAt)
 	} else if !episodeEntity.FirstUploadedAt.IsZero() {
-		embyItem.PremiereDate = episodeEntity.FirstUploadedAt
+		embyItem.PremiereDate = new(episodeEntity.FirstUploadedAt)
 	}
 
 	if episodeEntity.EpisodeNumber < math.MinInt32 || episodeEntity.EpisodeNumber > math.MaxInt32 {
 		return errors.New("episode number is out of range int32")
 	}
 
-	embyItem.IndexNumber = int32(episodeEntity.EpisodeNumber)
+	embyItem.IndexNumber = new(int32(episodeEntity.EpisodeNumber))
 
-	embyItem.LockData = true
+	embyItem.LockData = new(true)
 
 	embyItem.LockedFields = []embyclient.MetadataFields{
-		embyclient.NAME_MetadataFields,
-		embyclient.SORT_NAME_MetadataFields,
-		embyclient.TAGS_MetadataFields,
-		embyclient.OVERVIEW_MetadataFields,
-		embyclient.COMMUNITY_RATING_MetadataFields,
+		embyclient.Name,
+		embyclient.SortName,
+		embyclient.Tags,
+		embyclient.Overview,
+		embyclient.CommunityRating,
 	}
 
 	if err := s.updateItem(ctx, embyItem); err != nil {
-		return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
+		return fmt.Errorf("failed to update translation item %s: %w", value(embyItem.Id), err)
 	}
 
 	if err := s.manifestService.SetTranslationEmbyItemID(
 		showID,
 		episodeEntity.Anime365ID,
 		translationEntity.Anime365ID,
-		embyItem.Id,
+		value(embyItem.Id),
 	); err != nil {
 		return fmt.Errorf(
 			"failed to set translation emby item id in manifest %d: %w",
@@ -821,13 +841,13 @@ func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
 		translationEntity.Anime365Priority,
 	)
 
-	if embyItem.SortName != newSortName {
-		embyItem.SortName = newSortName
+	if value(embyItem.SortName) != newSortName {
+		embyItem.SortName = new(newSortName)
 		needUpdate = true
 	}
 
-	if embyItem.ForcedSortName != newSortName {
-		embyItem.ForcedSortName = newSortName
+	if value(embyItem.ForcedSortName) != newSortName {
+		embyItem.ForcedSortName = new(newSortName)
 		needUpdate = true
 	}
 
@@ -835,22 +855,22 @@ func (s *Service) UpdateTranslationMetadataWithAnime365Metadata(
 		return errors.New("episode number is out of range int32")
 	}
 
-	if embyItem.IndexNumber != int32(episodeEntity.EpisodeNumber) {
-		embyItem.IndexNumber = int32(episodeEntity.EpisodeNumber)
+	if value(embyItem.IndexNumber) != int32(episodeEntity.EpisodeNumber) {
+		embyItem.IndexNumber = new(int32(episodeEntity.EpisodeNumber))
 		needUpdate = true
 	}
 
-	embyItem.LockData = true
+	embyItem.LockData = new(true)
 
 	if needUpdate {
 		if err := s.updateItem(ctx, embyItem); err != nil {
-			return fmt.Errorf("failed to update translation item %s: %w", embyItem.Id, err)
+			return fmt.Errorf("failed to update translation item %s: %w", value(embyItem.Id), err)
 		}
 	} else {
 		s.logger.DebugContext(ctx, "No new metadata from Anime 365 found for Emby item, skipping updating it",
 			slog.Int64("episode_id", int64(episodeEntity.Anime365ID)),
 			slog.Int64("translation_id", int64(translationEntity.Anime365ID)),
-			slog.String("emby_item_id", embyItem.Id),
+			slog.String("emby_item_id", value(embyItem.Id)),
 		)
 	}
 
@@ -948,15 +968,18 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		}
 	}
 
-	itemsResponse, err := s.embyClient.GetUserItems(ctx, s.embyUserID, &embyclient.GetUserItemsOptionalParams{
-		ParentID:         embyItem.Id,
-		Limit:            1,
-		IsPlayed:         new(true),
-		SortBy:           []string{"SortName"},
-		SortOrder:        "Descending",
-		IncludeItemTypes: []string{"Episode"},
-		Recursive:        new(true),
-	})
+	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
+		s.embyClient.GetUsersByUseridItemsWithResponse(ctx, s.embyUserID, &embyclient.GetUsersByUseridItemsParams{
+			Fields:           new(embyItemFields),
+			ParentId:         new(value(embyItem.Id)),
+			Limit:            new(int32(1)),
+			IsPlayed:         new(true),
+			SortBy:           new("SortName"),
+			SortOrder:        new("Descending"),
+			IncludeItemTypes: new("Episode"),
+			Recursive:        new(true),
+		}),
+	)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get emby user items: %w", err)
 	}
@@ -967,7 +990,7 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 
 	embyItem = itemsResponse.Items[0]
 
-	videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, embyItem.Path)
+	videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, value(embyItem.Path))
 	if err != nil {
 		return 0, 0, fmt.Errorf(
 			"failed to get episode video file path relative to emby library root directory: %w",
@@ -980,17 +1003,20 @@ func (s *Service) GetLastWatchedEpisodeNumber(
 		return 0, 0, errors.New("failed to find translation in manifest by video file relative path")
 	}
 
-	return int64(embyItem.IndexNumber), translationID, nil
+	return int64(value(embyItem.IndexNumber)), translationID, nil
 }
 
 func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
 	ctx context.Context,
 ) (map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{}, error) {
-	itemsResponse, err := s.embyClient.GetItems(ctx, &embyclient.GetItemsOptionalParams{
-		IncludeItemTypes: []string{"Episode"},
-		ParentID:         s.embyLibraryItemID,
-		Recursive:        new(true),
-	})
+	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
+		s.embyClient.GetItemsWithResponse(ctx, &embyclient.GetItemsParams{
+			Fields:           new(embyItemFields),
+			IncludeItemTypes: new("Episode"),
+			ParentId:         new(s.embyLibraryItemID),
+			Recursive:        new(true),
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all emby episode items without metadata: %w", err)
 	}
@@ -998,7 +1024,7 @@ func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
 	result := make(map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{})
 
 	for _, item := range itemsResponse.Items {
-		videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, item.Path)
+		videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, value(item.Path))
 		if err != nil {
 			s.logger.WarnContext(
 				ctx,
@@ -1038,11 +1064,14 @@ func (s *Service) GetIDsWithoutMetadataFromEmbyLibrary(
 func (s *Service) GetIDsWithMetadataFromEmbyLibrary(
 	ctx context.Context,
 ) (map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{}, error) {
-	itemsResponse, err := s.embyClient.GetItems(ctx, &embyclient.GetItemsOptionalParams{
-		IncludeItemTypes: []string{"Episode"},
-		ParentID:         s.embyLibraryItemID,
-		Recursive:        new(true),
-	})
+	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
+		s.embyClient.GetItemsWithResponse(ctx, &embyclient.GetItemsParams{
+			Fields:           new(embyItemFields),
+			IncludeItemTypes: new("Episode"),
+			ParentId:         new(s.embyLibraryItemID),
+			Recursive:        new(true),
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all emby episode items with metadata: %w", err)
 	}
@@ -1050,7 +1079,7 @@ func (s *Service) GetIDsWithMetadataFromEmbyLibrary(
 	result := make(map[show.Anime365SeriesID]map[episode.Anime365EpisodeID]map[episode.Anime365TranslationID]struct{})
 
 	for _, item := range itemsResponse.Items {
-		videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, item.Path)
+		videoFileRelativePath, err := filepath.Rel(s.embyLibraryRootDirectory, value(item.Path))
 		if err != nil {
 			s.logger.WarnContext(
 				ctx,
@@ -1127,8 +1156,8 @@ func (s *Service) GetEpisodeMetadataForNotification(
 	}
 
 	q := url.Values{}
-	q.Set("serverId", embyItem.ServerId)
-	q.Set("id", embyItem.Id)
+	q.Set("serverId", value(embyItem.ServerId))
+	q.Set("id", value(embyItem.Id))
 
 	webURL := *s.embyPublicURL
 	webURL.Path = "/web/index.html"
@@ -1136,34 +1165,34 @@ func (s *Service) GetEpisodeMetadataForNotification(
 
 	result := EpisodeMetadataForNotification{
 		WebURL:       &webURL,
-		SeriesName:   embyItem.SeriesName,
-		EpisodeLabel: embyItem.Name,
+		SeriesName:   value(embyItem.SeriesName),
+		EpisodeLabel: value(embyItem.Name),
 	}
 
 	for _, mediaSource := range embyItem.MediaSources {
-		if mediaSource.Type_ != nil && *mediaSource.Type_ != embyclient.DEFAULT__MediaSourceType {
+		if mediaSource.Type != nil && *mediaSource.Type != embyclient.MediaSourceTypeDefault {
 			continue
 		}
 
-		result.Bitrate = int64(mediaSource.Bitrate)
+		result.Bitrate = int64(value(mediaSource.Bitrate))
 
 		for _, mediaStream := range mediaSource.MediaStreams {
-			if mediaStream.Type_ != nil && *mediaStream.Type_ != embyclient.VIDEO_MediaStreamType {
+			if mediaStream.Type != nil && *mediaStream.Type != embyclient.Video {
 				continue
 			}
 
-			if !mediaStream.IsDefault {
+			if !value(mediaStream.IsDefault) {
 				continue
 			}
 
-			result.VideoMetadataDisplayTitle = mediaStream.DisplayTitle
+			result.VideoMetadataDisplayTitle = value(mediaStream.DisplayTitle)
 		}
 	}
 
 	if result.Bitrate == 0 || result.VideoMetadataDisplayTitle == "" {
 		return EpisodeMetadataForNotification{}, fmt.Errorf(
 			"failed to determine file bitrate and video metadata of emby item %s",
-			embyItem.Id,
+			value(embyItem.Id),
 		)
 	}
 
@@ -1260,14 +1289,14 @@ func (s *Service) getSeriesItem(
 		)
 	}
 
-	itemsResponse, err := s.embyClient.GetItems(
-		ctx,
-		&embyclient.GetItemsOptionalParams{
-			Path:             embySeriesPath,
-			IncludeItemTypes: []string{"Series"},
+	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
+		s.embyClient.GetItemsWithResponse(ctx, &embyclient.GetItemsParams{
+			Fields:           new(embyItemFields),
+			Path:             new(embySeriesPath),
+			IncludeItemTypes: new("Series"),
 			Recursive:        new(true),
-			Limit:            1,
-		},
+			Limit:            new(int32(1)),
+		}),
 	)
 	if err != nil {
 		return embyclient.BaseItemDto{}, fmt.Errorf(
@@ -1310,14 +1339,14 @@ func (s *Service) getEpisodeItem(
 		)
 	}
 
-	itemsResponse, err := s.embyClient.GetItems(
-		ctx,
-		&embyclient.GetItemsOptionalParams{
-			Path:             embyEpisodeVideoPath,
-			IncludeItemTypes: []string{"Episode"},
+	itemsResponse, err := getEmbyJSONResponse[embyclient.QueryResultBaseItemDto](
+		s.embyClient.GetItemsWithResponse(ctx, &embyclient.GetItemsParams{
+			Fields:           new(embyItemFields),
+			Path:             new(embyEpisodeVideoPath),
+			IncludeItemTypes: new("Episode"),
 			Recursive:        new(true),
-			Limit:            1,
-		},
+			Limit:            new(int32(1)),
+		}),
 	)
 	if err != nil {
 		return embyclient.BaseItemDto{}, fmt.Errorf(
@@ -1335,9 +1364,9 @@ func (s *Service) getEpisodeItem(
 }
 
 func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDto) error {
-	err := s.embyClient.UpdateItem(ctx, embyItem.Id, embyItem)
+	err := embyResponseError(s.embyClient.PostItemsByItemidWithResponse(ctx, value(embyItem.Id), embyItem))
 	if err != nil {
-		return fmt.Errorf("failed to update emby item %s via api: %w", embyItem.Id, err)
+		return fmt.Errorf("failed to update emby item %s via api: %w", value(embyItem.Id), err)
 	}
 
 	return nil
@@ -1366,11 +1395,11 @@ func areStringSliceAndNameLongIdPairSliceEqual(a []string, b []embyclient.NameLo
 	}
 
 	for _, t := range b {
-		if counts[t.Name] == 0 {
+		if counts[value(t.Name)] == 0 {
 			return false
 		}
 
-		counts[t.Name]--
+		counts[value(t.Name)]--
 	}
 
 	return true
@@ -1390,12 +1419,12 @@ func arePeopleEqual(a, b []embyclient.BaseItemPerson) bool {
 	// build frequency map for a
 	for _, p := range a {
 		t := ""
-		if p.Type_ != nil {
-			t = string(*p.Type_)
+		if p.Type != nil {
+			t = string(*p.Type)
 		}
 
 		k := key{
-			Name: p.Name,
+			Name: value(p.Name),
 			Type: t,
 		}
 		counts[k]++
@@ -1403,12 +1432,12 @@ func arePeopleEqual(a, b []embyclient.BaseItemPerson) bool {
 	// subtract using b
 	for _, p := range b {
 		t := ""
-		if p.Type_ != nil {
-			t = string(*p.Type_)
+		if p.Type != nil {
+			t = string(*p.Type)
 		}
 
 		k := key{
-			Name: p.Name,
+			Name: value(p.Name),
 			Type: t,
 		}
 		if counts[k] == 0 {
@@ -1419,4 +1448,53 @@ func arePeopleEqual(a, b []embyclient.BaseItemPerson) bool {
 	}
 
 	return true
+}
+
+// embyItemFields includes fields read by the sidecar and fields required to preserve metadata when updating items.
+const embyItemFields = "Budget,Chapters,CommunityRating,DateCreated,DisplayOrder,EndDate,EpisodeNumber,ForcedSortName,Genres,HomePageUrl,Id,IndexNumber,IndexOptions,LockData,LockedFields,MediaSources,MediaStreams,Name,OfficialRating,OriginalTitle,Overview,ParentId,Path,People,PremiereDate,PrimaryImageAspectRatio,ProductionYear,ProviderIds,Revenue,RunTimeTicks,SeriesName,ServerId,SortName,Status,Studios,TagItems,Taglines,Tags"
+
+func value[T any](pointer *T) T {
+	if pointer != nil {
+		return *pointer
+	}
+
+	var zero T
+
+	return zero
+}
+
+func embyResponseError(response interface {
+	StatusCode() int
+	Status() string
+	GetBody() []byte
+}, err error,
+) error {
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode() < 200 || response.StatusCode() >= 300 {
+		return fmt.Errorf("Emby API returned %s: %s", response.Status(), response.GetBody())
+	}
+
+	return nil
+}
+
+func getEmbyJSONResponse[T any](response interface {
+	GetJSON200() *T
+	StatusCode() int
+	Status() string
+	GetBody() []byte
+}, err error,
+) (T, error) {
+	var zero T
+	if err := embyResponseError(response, err); err != nil {
+		return zero, err
+	}
+
+	if response.GetJSON200() == nil {
+		return zero, errors.New("Emby API returned no JSON response")
+	}
+
+	return *response.GetJSON200(), nil
 }

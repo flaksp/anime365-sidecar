@@ -13,7 +13,7 @@ import (
 var EmbyService = func(
 	config *config.Env,
 	logger *slog.Logger,
-	embyClient *embyclient.Client,
+	embyClient *embyclient.ClientWithResponses,
 	animeMappingService *animemapping.Service,
 ) (*emby.Service, error) {
 	downloadsDirectoryAbsolutePath, err := filepath.Abs(config.LibraryDirectory)
