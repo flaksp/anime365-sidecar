@@ -769,6 +769,7 @@ func jellyfinResponseError(response interface {
 }
 
 func getJellyfinJSONResponse[T any](response interface {
+	ContentType() string
 	GetJSON200() *T
 	StatusCode() int
 	Status() string
@@ -781,7 +782,11 @@ func getJellyfinJSONResponse[T any](response interface {
 	}
 
 	if response.GetJSON200() == nil {
-		return zero, errors.New("Jellyfin API returned no JSON response")
+		return zero, fmt.Errorf(
+			"Jellyfin API returned no parsed JSON response (status %d, content type %q)",
+			response.StatusCode(),
+			response.ContentType(),
+		)
 	}
 
 	return *response.GetJSON200(), nil

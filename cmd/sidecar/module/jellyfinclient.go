@@ -3,6 +3,7 @@ package module
 import (
 	"context"
 	"log/slog"
+	"mime"
 	"net/http"
 	"time"
 
@@ -16,7 +17,7 @@ var JellyfinClient = func(config *config.Env, logger *slog.Logger) (*jellyfincli
 		config.JellyfinBaseURL.String(),
 		jellyfinclient.WithHTTPClient(
 			&http.Client{
-				Transport: httproundtripperwithlogger.New(http.DefaultTransport, logger),
+				Transport: jellyfinTransport{base: httproundtripperwithlogger.New(http.DefaultTransport, logger)},
 				Timeout:   5 * time.Second,
 			},
 		),
@@ -30,4 +31,25 @@ var JellyfinClient = func(config *config.Env, logger *slog.Logger) (*jellyfincli
 			return nil
 		}),
 	)
+}
+
+// Jellyfin declares JSON profile variants in OpenAPI, so the generated parser
+// compares Content-Type literally. Real responses also include charset parameters.
+// All declared profiles use the same models; let the parser use its JSON branch.
+type jellyfinTransport struct {
+	base http.RoundTripper
+}
+
+func (t jellyfinTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := t.base.RoundTrip(request)
+	if err != nil {
+		return nil, err
+	}
+
+	mediaType, _, parseErr := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if parseErr == nil && mediaType == "application/json" {
+		response.Header.Set("Content-Type", mediaType)
+	}
+
+	return response, nil
 }
