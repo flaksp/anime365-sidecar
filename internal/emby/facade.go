@@ -295,13 +295,14 @@ func (s *Service) ComputeTranslationFileAbsolutePathsForDownloads(
 	)
 
 	if translationMedia.SubtitlesURL != nil {
+		translationLanguage, _ := translationEntity.Variant.Language.Base()
+
 		subtitlesFileRelativePath = filepath.Join(
 			translationDirectoryRelativePath,
 			fmt.Sprintf(
-				"%s.%s(%s).ass",
+				"%s.%s.ass",
 				translationFileName,
-				display.English.Languages().Name(translationEntity.Variant.Language),
-				formatAuthorsListForFileName(translationEntity.Authors),
+				translationLanguage.String(),
 			),
 		)
 
