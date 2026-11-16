@@ -40,7 +40,7 @@ func (s *Service) applyEpisodeSeasonNumber(
 	showID show.Anime365SeriesID,
 	episodeEntity episode.Episode,
 ) (bool, error) {
-	if s.animeMappingService == nil || episodeEntity.IsSpecial || episodeEntity.IsTrailer {
+	if episodeEntity.IsSpecial || episodeEntity.IsTrailer {
 		return false, nil
 	}
 
@@ -49,16 +49,20 @@ func (s *Service) applyEpisodeSeasonNumber(
 		return false, errShowNotFoundInManifest
 	}
 
-	mapping, exists := s.animeMappingService.LookupByMyAnimeListID(int64(malID))
-	if !exists || mapping.SeasonNumber <= 0 {
-		return false, nil
+	number := int64(1)
+
+	if s.animeMappingService != nil {
+		mapping, found := s.animeMappingService.LookupByMyAnimeListID(int64(malID))
+		if found && mapping.SeasonNumber > 0 {
+			number = mapping.SeasonNumber
+		}
 	}
 
-	if mapping.SeasonNumber > math.MaxInt32 {
-		return false, fmt.Errorf("season number %d is out of range int32", mapping.SeasonNumber)
+	if number > math.MaxInt32 {
+		return false, fmt.Errorf("season number %d is out of range int32", number)
 	}
 
-	seasonNumber := int32(mapping.SeasonNumber)
+	seasonNumber := int32(number)
 	if item.ParentIndexNumber != nil && *item.ParentIndexNumber == seasonNumber {
 		return false, nil
 	}

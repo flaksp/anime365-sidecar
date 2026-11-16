@@ -15,17 +15,19 @@ import (
 // UpdateSeasonMetadata sets the main season name and number using Fribb mappings.
 // The library layout keeps each anime in Season 01, with specials in Season 00.
 func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show) error {
-	if s.animeMappingService == nil {
-		return nil
+	seasonNumber := int64(1)
+
+	name := showEntity.TypeLabel
+	if s.animeMappingService != nil {
+		mapping, exists := s.animeMappingService.LookupByMyAnimeListID(int64(showEntity.MyAnimeListID))
+		if exists && mapping.SeasonNumber > 0 {
+			seasonNumber = mapping.SeasonNumber
+			name = fmt.Sprintf("%d сезон", seasonNumber)
+		}
 	}
 
-	mapping, exists := s.animeMappingService.LookupByMyAnimeListID(int64(showEntity.MyAnimeListID))
-	if !exists || mapping.SeasonNumber <= 0 {
-		return nil
-	}
-
-	if mapping.SeasonNumber > math.MaxInt32 {
-		return fmt.Errorf("season number %d is out of range int32", mapping.SeasonNumber)
+	if seasonNumber > math.MaxInt32 {
+		return fmt.Errorf("season number %d is out of range int32", seasonNumber)
 	}
 
 	series, err := s.getSeriesItem(ctx, showEntity.Anime365ID)
@@ -57,16 +59,15 @@ func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show
 			continue
 		}
 
-		name := fmt.Sprintf("%d сезон", mapping.SeasonNumber)
-
 		nameLocked := slices.Contains(item.LockedFields, embyclient.Name)
 
-		seasonNumber := int32(mapping.SeasonNumber)
-		if value(item.Name) != name || value(item.IndexNumber) != seasonNumber || !nameLocked {
-			item.Name = new(name)
+		if (name != "" && (value(item.Name) != name || !nameLocked)) || value(item.IndexNumber) != int32(seasonNumber) {
+			if name != "" {
+				item.Name = new(name)
+			}
 
-			item.IndexNumber = new(seasonNumber)
-			if !nameLocked {
+			item.IndexNumber = new(int32(seasonNumber))
+			if name != "" && !nameLocked {
 				item.LockedFields = append(item.LockedFields, embyclient.Name)
 			}
 
