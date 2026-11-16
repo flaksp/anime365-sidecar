@@ -540,6 +540,10 @@ func (s *Service) InitializeTranslationMetadata(
 
 	jellyfinItem.IndexNumber = new(int32(episodeEntity.EpisodeNumber))
 
+	if _, err := s.applyEpisodeSeasonNumber(&jellyfinItem, showID, episodeEntity); err != nil {
+		return fmt.Errorf("failed to apply episode season number: %w", err)
+	}
+
 	jellyfinItem.LockData = new(true)
 
 	jellyfinItem.LockedFields = []jellyfinclient.MetadataField{
@@ -592,7 +596,10 @@ func (s *Service) UpdateTranslationMetadata(
 		}
 	}
 
-	needUpdate := false
+	needUpdate, err := s.applyEpisodeSeasonNumber(&jellyfinItem, showID, episodeEntity)
+	if err != nil {
+		return fmt.Errorf("failed to apply episode season number: %w", err)
+	}
 
 	newSortName := fmt.Sprintf(
 		"Episode %05d, priority %010d",

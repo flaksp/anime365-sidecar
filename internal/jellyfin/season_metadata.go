@@ -3,6 +3,8 @@ package jellyfin
 import (
 	"context"
 	"fmt"
+	"math"
+	"path/filepath"
 	"slices"
 
 	"github.com/flaksp/anime365-sidecar/internal/mediaserver"
@@ -10,7 +12,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/pkg/jellyfinclient"
 )
 
-// UpdateSeasonMetadata names the main season using Fribb's mapped season number.
+// UpdateSeasonMetadata sets the main season name and number using Fribb mappings.
 // The library layout keeps each anime in Season 01, with specials in Season 00.
 func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show) error {
 	if s.animeMappingService == nil {
@@ -22,10 +24,21 @@ func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show
 		return nil
 	}
 
+	if mapping.SeasonNumber > math.MaxInt32 {
+		return fmt.Errorf("season number %d is out of range int32", mapping.SeasonNumber)
+	}
+
 	series, err := s.getSeriesItem(ctx, showEntity.Anime365ID)
 	if err != nil {
 		return err
 	}
+
+	showPath, err := s.getJellyfinShowPath(showEntity.Anime365ID)
+	if err != nil {
+		return err
+	}
+
+	seasonPath := filepath.Join(showPath, "Season 01")
 
 	items, err := s.getItems(ctx, jellyfinclient.GetItemsParams{
 		ParentId:         series.Id,
@@ -37,18 +50,20 @@ func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show
 	}
 
 	for _, item := range items {
-		if value(item.IndexNumber) != 1 {
+		if filepath.Clean(value(item.Path)) != filepath.Clean(seasonPath) {
 			continue
 		}
 
 		name := fmt.Sprintf("%d сезон", mapping.SeasonNumber)
 
 		nameLocked := slices.Contains(item.LockedFields, jellyfinclient.MetadataFieldName)
-		if value(item.Name) == name && nameLocked {
+		if value(item.Name) == name && value(item.IndexNumber) == int32(mapping.SeasonNumber) && nameLocked {
 			return nil
 		}
 
 		item.Name = new(name)
+
+		item.IndexNumber = new(int32(mapping.SeasonNumber))
 		if !nameLocked {
 			item.LockedFields = append(item.LockedFields, jellyfinclient.MetadataFieldName)
 		}
