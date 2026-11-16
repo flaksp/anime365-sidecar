@@ -623,6 +623,10 @@ func (s *Service) InitializeTranslationMetadata(
 
 	embyItem.IndexNumber = new(int32(episodeEntity.EpisodeNumber))
 
+	if _, err := s.applyEpisodeSeasonNumber(&embyItem, showID, episodeEntity); err != nil {
+		return fmt.Errorf("failed to apply episode season number: %w", err)
+	}
+
 	embyItem.LockData = new(true)
 
 	embyItem.LockedFields = []embyclient.MetadataFields{
@@ -677,7 +681,10 @@ func (s *Service) UpdateTranslationMetadata(
 		}
 	}
 
-	needUpdate := false
+	needUpdate, err := s.applyEpisodeSeasonNumber(&embyItem, showID, episodeEntity)
+	if err != nil {
+		return fmt.Errorf("failed to apply episode season number: %w", err)
+	}
 
 	newSortName := fmt.Sprintf(
 		"Episode %05d, priority %010d",
@@ -1153,7 +1160,7 @@ func arePeopleEqual(a, b []embyclient.BaseItemPerson) bool {
 }
 
 // embyItemFields includes fields read by the sidecar and fields required to preserve metadata when updating items.
-const embyItemFields = "Budget,Chapters,CommunityRating,DateCreated,DisplayOrder,EndDate,EpisodeNumber,ForcedSortName,Genres,HomePageUrl,Id,IndexNumber,IndexOptions,LockData,LockedFields,MediaSources,MediaStreams,Name,OfficialRating,OriginalTitle,Overview,ParentId,Path,People,PremiereDate,PrimaryImageAspectRatio,ProductionYear,ProviderIds,Revenue,RunTimeTicks,SeriesName,ServerId,SortName,Status,Studios,TagItems,Taglines,Tags"
+const embyItemFields = "Budget,Chapters,CommunityRating,DateCreated,DisplayOrder,EndDate,EpisodeNumber,ForcedSortName,Genres,HomePageUrl,Id,IndexNumber,IndexOptions,LockData,LockedFields,MediaSources,MediaStreams,Name,OfficialRating,OriginalTitle,Overview,ParentId,ParentIndexNumber,Path,People,PremiereDate,PrimaryImageAspectRatio,ProductionYear,ProviderIds,Revenue,RunTimeTicks,SeriesName,ServerId,SortName,Status,Studios,TagItems,Taglines,Tags"
 
 func value[T any](pointer *T) T {
 	if pointer != nil {

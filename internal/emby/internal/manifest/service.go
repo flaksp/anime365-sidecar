@@ -130,6 +130,15 @@ func (s *Service) GetShowDirectoryName(
 	return showEntry.DirectoryName, true
 }
 
+func (s *Service) GetShowMyAnimeListID(showID show.Anime365SeriesID) (show.MyAnimeListID, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entry, exists := s.inMemoryManifest.Shows[strconv.FormatInt(int64(showID), 10)]
+
+	return show.MyAnimeListID(entry.MyAnimeListID), exists
+}
+
 func (s *Service) InsertShowEntry(
 	showID show.Anime365SeriesID,
 	directoryName string,

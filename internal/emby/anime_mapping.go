@@ -1,7 +1,11 @@
 package emby
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
+	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/pkg/embyclient"
 )
@@ -58,4 +62,37 @@ func applyExternalProviderIDs(embyItem *embyclient.BaseItemDto, externalIDs anim
 	}
 
 	return changed
+}
+
+func (s *Service) applyEpisodeSeasonNumber(
+	item *embyclient.BaseItemDto,
+	showID show.Anime365SeriesID,
+	episodeEntity episode.Episode,
+) (bool, error) {
+	if s.animeMappingService == nil || episodeEntity.IsSpecial || episodeEntity.IsTrailer {
+		return false, nil
+	}
+
+	malID, exists := s.manifestService.GetShowMyAnimeListID(showID)
+	if !exists {
+		return false, errShowNotFoundInManifest
+	}
+
+	mapping, exists := s.animeMappingService.LookupByMyAnimeListID(int64(malID))
+	if !exists || mapping.SeasonNumber <= 0 {
+		return false, nil
+	}
+
+	if mapping.SeasonNumber > math.MaxInt32 {
+		return false, fmt.Errorf("season number %d is out of range int32", mapping.SeasonNumber)
+	}
+
+	seasonNumber := int32(mapping.SeasonNumber)
+	if item.ParentIndexNumber != nil && *item.ParentIndexNumber == seasonNumber {
+		return false, nil
+	}
+
+	item.ParentIndexNumber = new(seasonNumber)
+
+	return true, nil
 }

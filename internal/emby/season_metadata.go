@@ -60,19 +60,19 @@ func (s *Service) UpdateSeasonMetadata(ctx context.Context, showEntity show.Show
 		name := fmt.Sprintf("%d сезон", mapping.SeasonNumber)
 
 		nameLocked := slices.Contains(item.LockedFields, embyclient.Name)
-		if value(item.Name) == name && value(item.IndexNumber) == int32(mapping.SeasonNumber) && nameLocked {
-			return nil
-		}
 
-		item.Name = new(name)
+		seasonNumber := int32(mapping.SeasonNumber)
+		if value(item.Name) != name || value(item.IndexNumber) != seasonNumber || !nameLocked {
+			item.Name = new(name)
 
-		item.IndexNumber = new(int32(mapping.SeasonNumber))
-		if !nameLocked {
-			item.LockedFields = append(item.LockedFields, embyclient.Name)
-		}
+			item.IndexNumber = new(seasonNumber)
+			if !nameLocked {
+				item.LockedFields = append(item.LockedFields, embyclient.Name)
+			}
 
-		if err := s.updateItem(ctx, item); err != nil {
-			return fmt.Errorf("failed to update season metadata: %w", err)
+			if err := s.updateItem(ctx, item); err != nil {
+				return fmt.Errorf("failed to update season metadata: %w", err)
+			}
 		}
 
 		return nil
