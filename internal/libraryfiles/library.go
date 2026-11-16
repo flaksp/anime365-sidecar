@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/flaksp/anime365-sidecar/internal/episode"
 	"github.com/flaksp/anime365-sidecar/internal/show"
@@ -38,10 +39,24 @@ func (s *Library) CreateShowIfNotExists(
 ) error {
 	showDirectoryName, showManifestEntryExists := s.store.GetShowDirectoryName(showID)
 	if !showManifestEntryExists {
+		computedShowDirectoryNameSuffix := fmt.Sprintf("[mal-%d]", myAnimeListID)
+
 		computedShowDirectoryName := filename.Clean(showTitle)
 		computedShowDirectoryName = strings.Join(strings.Fields(computedShowDirectoryName), " ")
 		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
-		computedShowDirectoryName = fmt.Sprintf("%s [mal-%d]", computedShowDirectoryName, myAnimeListID)
+
+		// A 255-byte UTF-8 limit also fits Windows' 255 UTF-16 code unit limit.
+		maxTitleBytes := 255 - len(computedShowDirectoryNameSuffix) - 1
+		for index, character := range computedShowDirectoryName {
+			if index+utf8.RuneLen(character) > maxTitleBytes {
+				computedShowDirectoryName = computedShowDirectoryName[:index]
+
+				break
+			}
+		}
+
+		computedShowDirectoryName = strings.TrimSpace(computedShowDirectoryName)
+		computedShowDirectoryName = fmt.Sprintf("%s %s", computedShowDirectoryName, computedShowDirectoryNameSuffix)
 
 		showDirectoryName = computedShowDirectoryName
 	}
@@ -150,8 +165,7 @@ func (s *Library) ComputeTranslationFileAbsolutePathsForDownloads(
 		)
 	} else {
 		translationFileName = fmt.Sprintf(
-			"%s S1E%d - %s %s by %s, t%d",
-			showEntity.TitleRomaji,
+			"S1E%d - %s %s by %s, t%d",
 			episodeEntity.EpisodeNumber,
 			display.English.Languages().Name(translationEntity.Variant.Language),
 			cases.Title(language.English).String(translationEntity.Variant.Kind.Label()),
