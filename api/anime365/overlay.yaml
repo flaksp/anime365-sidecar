@@ -1,0 +1,81 @@
+overlay: 1.0.0
+info:
+  title: Дополнения схем Anime365 для sidecar
+  version: "1.0"
+actions:
+  - target: $.components.schemas.Series.properties.links
+    remove: true
+  - target: $.components.schemas.Series.properties
+    update:
+      url: { type: string }
+      genres:
+        type: array
+        items:
+          type: object
+          properties:
+            title: { type: string }
+      descriptions:
+        type: array
+        items:
+          type: object
+          properties:
+            source: { type: string }
+            value: { type: string }
+      episodes:
+        type: array
+        items: { $ref: '#/components/schemas/Episode' }
+  - target: $.components.schemas.Episode.properties
+    update:
+      translations:
+        type: array
+        items: { $ref: '#/components/schemas/Translation' }
+  - target: $.components.schemas
+    update:
+      TranslationEmbed:
+        type: object
+        properties:
+          subtitlesUrl: { type: string }
+          stream:
+            type: array
+            items:
+              type: object
+              properties:
+                height: { type: integer, format: int64 }
+                urls:
+                  type: array
+                  items: { type: string }
+  - target: $.paths['/translations/embed/{id}'].get.responses['200'].content['application/json'].schema
+    remove: true
+  - target: $.paths['/translations/embed/{id}'].get.responses['200'].content['application/json']
+    update:
+      schema:
+        type: object
+        properties:
+          data: { $ref: '#/components/schemas/TranslationEmbed' }
+  - target: $.components.schemas.*.properties.isActive
+    update:
+      x-go-type-skip-optional-pointer: false
+  - target: $..[?(@.type == 'number')]
+    update:
+      format: double
+  - target: $.components.schemas.*.properties['id','seriesId','episodeId','myAnimeListId','numberOfEpisodes']
+    update:
+      format: int64
+  - target: $.paths.*.get.parameters[?(@.name == 'id')].schema
+    update:
+      format: int64
+  - target: $.paths['/series/{id}'].get
+    update:
+      operationId: getSeries
+  - target: $.paths['/episodes/{id}'].get
+    update:
+      operationId: getEpisode
+  - target: $.paths['/translations/{id}'].get
+    update:
+      operationId: getTranslation
+  - target: $.paths['/translations/embed/{id}'].get
+    update:
+      operationId: getTranslationEmbed
+  - target: $.paths.*.get.responses['200'].content['application/json'].schema.properties.data
+    update:
+      x-go-type-skip-optional-pointer: false

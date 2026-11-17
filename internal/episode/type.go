@@ -193,7 +193,7 @@ func NewTranslationMedia(
 
 	for _, streamDTO := range translationEmbedDTO.Stream {
 		if streamDTO.Height > translationMediaEntity.Height && len(translationEmbedDTO.Stream) > 0 {
-			videoURL, err := url.Parse(streamDTO.URLs[0])
+			videoURL, err := url.Parse(streamDTO.Urls[0])
 			if err != nil {
 				continue
 			}

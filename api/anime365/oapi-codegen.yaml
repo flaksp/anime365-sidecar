@@ -1,0 +1,16 @@
+package: api
+output: pkg/anime365client/internal/api/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms
+  prefer-skip-optional-pointer: true
+  prefer-skip-optional-pointer-on-container-types: true
+  include-operation-ids:
+    - getSeries
+    - getEpisode
+    - getTranslation
+    - getTranslationEmbed
+  overlay:
+    path: api/anime365/overlay.yaml

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/flaksp/anime365-sidecar/pkg/anime365client/internal/api"
 	"github.com/google/uuid"
 )
 
@@ -30,16 +31,29 @@ func New(
 	httpClient *http.Client,
 	timeout time.Duration,
 	logger *slog.Logger,
-) *Client {
+) (*Client, error) {
+	apiClient, err := api.NewClientWithResponses(baseURL.JoinPath("api").String(), api.WithHTTPClient(httpClient),
+		api.WithRequestEditorFn(func(_ context.Context, request *http.Request) error {
+			request.Header.Set("User-Agent", "anime365-sidecar")
+
+			return nil
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating Anime365 API client: %w", err)
+	}
+
 	return &Client{
 		BaseURL:    baseURL,
 		httpClient: httpClient,
 		timeout:    timeout,
 		logger:     logger,
-	}
+		apiClient:  apiClient,
+	}, nil
 }
 
 type Client struct {
+	apiClient  *api.ClientWithResponses
 	BaseURL    *url.URL
 	httpClient *http.Client
 	logger     *slog.Logger
@@ -47,35 +61,71 @@ type Client struct {
 }
 
 func (c *Client) GetSeries(ctx context.Context, seriesID int64) (Series, error) {
-	var response Series
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
-	err := c.sendRequestToAPI(ctx, fmt.Sprintf("/api/series/%d", seriesID), nil, &response)
+	response, err := c.apiClient.GetSeriesWithResponse(ctx, seriesID, nil)
+	if err != nil {
+		return Series{}, fmt.Errorf("requesting Anime365 API: %w", err)
+	}
 
-	return response, err
+	var data *Series
+	if response.JSON200 != nil {
+		data = response.JSON200.Data
+	}
+
+	return decodeAPIResponse(response.Body, response.HTTPResponse, data)
 }
 
 func (c *Client) GetEpisode(ctx context.Context, episodeID int64) (Episode, error) {
-	var response Episode
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
-	err := c.sendRequestToAPI(ctx, fmt.Sprintf("/api/episodes/%d", episodeID), nil, &response)
+	response, err := c.apiClient.GetEpisodeWithResponse(ctx, episodeID, nil)
+	if err != nil {
+		return Episode{}, fmt.Errorf("requesting Anime365 API: %w", err)
+	}
 
-	return response, err
+	var data *Episode
+	if response.JSON200 != nil {
+		data = response.JSON200.Data
+	}
+
+	return decodeAPIResponse(response.Body, response.HTTPResponse, data)
 }
 
 func (c *Client) GetTranslation(ctx context.Context, translationID int64) (Translation, error) {
-	var response Translation
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
-	err := c.sendRequestToAPI(ctx, fmt.Sprintf("/api/translations/%d", translationID), nil, &response)
+	response, err := c.apiClient.GetTranslationWithResponse(ctx, translationID, nil)
+	if err != nil {
+		return Translation{}, fmt.Errorf("requesting Anime365 API: %w", err)
+	}
 
-	return response, err
+	var data *Translation
+	if response.JSON200 != nil {
+		data = response.JSON200.Data
+	}
+
+	return decodeAPIResponse(response.Body, response.HTTPResponse, data)
 }
 
 func (c *Client) GetTranslationEmbed(ctx context.Context, translationID int64) (TranslationEmbed, error) {
-	var response TranslationEmbed
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
 
-	err := c.sendRequestToAPI(ctx, fmt.Sprintf("/api/translations/embed/%d", translationID), nil, &response)
+	response, err := c.apiClient.GetTranslationEmbedWithResponse(ctx, translationID, nil)
+	if err != nil {
+		return TranslationEmbed{}, fmt.Errorf("requesting Anime365 API: %w", err)
+	}
 
-	return response, err
+	var data *TranslationEmbed
+	if response.JSON200 != nil {
+		data = response.JSON200.Data
+	}
+
+	return decodeAPIResponse(response.Body, response.HTTPResponse, data)
 }
 
 func (c *Client) Login(ctx context.Context, username string, password string) error {
@@ -231,72 +281,29 @@ func (c *Client) GetSubtitles(ctx context.Context, path string) ([]byte, error) 
 	return subtitlesBytes, nil
 }
 
-// nolint:unparam
-func (c *Client) sendRequestToAPI(ctx context.Context, endpoint string, queryParams url.Values, response any) error {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-
-	requestURL := c.BaseURL.JoinPath(endpoint)
-	requestURL.RawQuery = queryParams.Encode()
-
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
-	if err != nil {
-		return fmt.Errorf("creating http request with context: %w", err)
+func decodeAPIResponse[T any](body []byte, response *http.Response, data *T) (T, error) {
+	var (
+		zero         T
+		wrappedError api.Error
+	)
+	if err := json.Unmarshal(body, &wrappedError); err == nil && wrappedError.Error.Code != 0 {
+		return zero, &APIError{Code: wrappedError.Error.Code, Message: wrappedError.Error.Message}
 	}
-
-	httpResponse, err := c.httpClient.Do(httpRequest)
-	if err != nil {
-		return fmt.Errorf("sending http request: %w", err)
-	}
-
-	defer func(Body io.ReadCloser) {
-		if err := Body.Close(); err != nil {
-			c.logger.WarnContext(
-				ctx,
-				"Anime 365 API response body closed unexpectedly",
-				slog.String("error", err.Error()),
-			)
-		}
-	}(httpResponse.Body)
-
-	responseBodyBytes, err := io.ReadAll(httpResponse.Body)
-	if err != nil {
-		return fmt.Errorf("reading response body: %w", err)
-	}
-
-	if httpResponse.StatusCode >= 400 {
-		c.logger.WarnContext(
-			ctx,
-			"Unexpected response from Anime 365 API",
-			slog.String("method", httpRequest.Method),
-			slog.String("url", httpRequest.URL.String()),
-			slog.String("status", httpResponse.Status),
-			slog.String("response_body", string(responseBodyBytes)),
-		)
-	}
-
+	// Preserve support for the legacy unwrapped API error format.
 	var apiError APIError
-	if err := json.Unmarshal(responseBodyBytes, &apiError); err == nil && apiError.Code != 0 {
-		return &apiError
+	if err := json.Unmarshal(body, &apiError); err == nil && apiError.Code != 0 {
+		return zero, &apiError
 	}
 
-	var wrappedResponse struct {
-		Data json.RawMessage `json:"data"`
+	if response.StatusCode != http.StatusOK {
+		return zero, &APIError{Code: response.StatusCode, Message: response.Status}
 	}
 
-	if err := json.Unmarshal(responseBodyBytes, &wrappedResponse); err != nil {
-		return fmt.Errorf("unmarshaling wrapped response: %w", err)
+	if data == nil {
+		return zero, errors.New("empty data field in Anime365 API response")
 	}
 
-	if len(wrappedResponse.Data) == 0 {
-		return errors.New("empty data field in response")
-	}
-
-	if err := json.Unmarshal(wrappedResponse.Data, response); err != nil {
-		return fmt.Errorf("unmarshaling response data: %w", err)
-	}
-
-	return nil
+	return *data, nil
 }
 
 func (c *Client) sendGETRequestToWeb(ctx context.Context, endpoint string, queryParams url.Values) ([]byte, error) {

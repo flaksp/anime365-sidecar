@@ -43,8 +43,8 @@ type EpisodePreview struct {
 func NewShow(series anime365client.Series) (Show, error) {
 	showEntity := Show{
 		Anime365ID:    Anime365SeriesID(series.ID),
-		TitleRomaji:   strings.TrimSpace(series.Titles.Romaji),
-		TitleRussian:  strings.TrimSpace(series.Titles.Ru),
+		TitleRomaji:   strings.TrimSpace(series.Titles["romaji"]),
+		TitleRussian:  strings.TrimSpace(series.Titles["ru"]),
 		MyAnimeListID: MyAnimeListID(series.MyAnimeListID),
 		Genres:        make([]string, 0, len(series.Genres)),
 		IsOngoing:     series.IsAiring == 1,

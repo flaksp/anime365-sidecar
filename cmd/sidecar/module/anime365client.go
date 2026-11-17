@@ -26,5 +26,5 @@ var Anime365Client = func(config *config.Env, logger *slog.Logger) (*anime365cli
 		},
 		5*time.Second,
 		logger,
-	), nil
+	)
 }

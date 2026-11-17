@@ -1,74 +1,19 @@
 package anime365client
 
-type Series struct {
-	Titles struct {
-		Romaji string `json:"romaji"`
-		Ru     string `json:"ru"`
-	} `json:"titles"`
-	URL       string `json:"url"`
-	PosterURL string `json:"posterUrl"`
-	Season    string `json:"season"`
-	TypeTitle string `json:"typeTitle"`
-	Genres    []struct {
-		Title string `json:"title"`
-	} `json:"genres"`
-	Descriptions []struct {
-		Source string `json:"source"`
-		Value  string `json:"value"`
-	} `json:"descriptions"`
-	Episodes []struct {
-		EpisodeType string  `json:"episodeType"`
-		EpisodeInt  float64 `json:"episodeInt"`
-		ID          int64   `json:"id"`
-	} `json:"episodes"`
-	Links []struct {
-		Title string `json:"title"`
-		URL   string `json:"url"`
-	}
-	MyAnimeListScore float64 `json:"myAnimeListScore"`
-	ID               int64   `json:"id"`
-	Year             int     `json:"year"`
-	IsAiring         int     `json:"isAiring"`
-	MyAnimeListID    int64   `json:"myAnimeListId"`
-	NumberOfEpisodes int64   `json:"numberOfEpisodes"`
-}
+import "github.com/flaksp/anime365-sidecar/pkg/anime365client/internal/api"
+
+type (
+	Series           = api.Series
+	Episode          = api.Episode
+	Translation      = api.Translation
+	TranslationEmbed = api.TranslationEmbed
+)
 
 const (
 	TranslationKindSub   = "sub"
 	TranslationKindVoice = "voice"
 	TranslationKindRaw   = "raw"
 )
-
-type Episode struct {
-	IsActive              *int          `json:"isActive"`
-	EpisodeFull           string        `json:"episodeFull"`
-	EpisodeType           string        `json:"episodeType"`
-	EpisodeTitle          string        `json:"episodeTitle"`
-	FirstUploadedDateTime string        `json:"firstUploadedDateTime"`
-	Translations          []Translation `json:"translations"`
-	EpisodeInt            float64       `json:"episodeInt"`
-	ID                    int64         `json:"id"`
-}
-
-type Translation struct {
-	IsActive       *int     `json:"isActive"`
-	AuthorsSummary string   `json:"authorsSummary"`
-	TypeKind       string   `json:"typeKind"`
-	TypeLang       string   `json:"typeLang"`
-	ActiveDateTime string   `json:"activeDateTime"`
-	URL            string   `json:"url"`
-	AuthorsList    []string `json:"authorsList"`
-	ID             int64    `json:"id"`
-	Priority       int      `json:"priority"`
-}
-
-type TranslationEmbed struct {
-	SubtitlesURL string `json:"subtitlesUrl"`
-	Stream       []struct {
-		URLs   []string `json:"urls"`
-		Height int64    `json:"height"`
-	} `json:"stream"`
-}
 
 type Profile struct {
 	Name string

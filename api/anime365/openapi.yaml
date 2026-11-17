@@ -1,0 +1,915 @@
+openapi: 3.0.3
+
+info:
+  title: Anime 365
+  version: "1.0"
+  description: |
+    Публичное API каталога аниме: список аниме, эпизоды, переводы (озвучки и
+    субтитры) и ссылки на видео для просмотра/скачивания.
+
+    ## Базовый адрес
+
+    Все методы находятся под `/api` на домене сайта, например
+    `https://smotret-anime.app/api/series`. Запросы можно отправлять и на тот
+    домен, с которого вы открыли документацию (относительный путь `/api`).
+    Интерактивные примеры в документации отправляют запросы на текущий домен.
+
+    Просьба указывать в заголовке `User-Agent` название вашего сайта или
+    программы.
+
+    ## Формат ответа
+
+    Успешный ответ всегда обёрнут в поле `data`:
+
+    ```json
+    { "data": { "id": 19730, "...": "..." } }
+    ```
+
+    Методы-списки возвращают массив в `data`. В случае ошибки вместо `data`
+    возвращается объект `error` (см. схему `Error`).
+
+    Параметр `pretty=1` включает "читабельный" (отформатированный) JSON, а
+    `callback` - возвращает JSONP.
+
+    ## Авторизация
+
+    Справочники, каталог, эпизоды и метаданные переводов открыты и не требуют авторизации.
+    Данные пользователя и ссылки на видео (embed) требуют параметр
+    `access_token`.
+
+    Как получить токен:
+
+    1. Зарегистрируйте приложение на странице
+       [создания API-клиента](/api/clients) - вы получите идентификатор `app`.
+       Идентификатор `app` не является секретом: его можно встраивать в
+       публичные приложения и выкладывать в открытый исходный код. Секретен
+       только `access_token`, который привязан к конкретному пользователю.
+    2. Обменяйте логин и пароль на токен:
+       `GET /api/login?app=ВАШ_APP&email=...&password=...`, либо, если вы уже
+       вошли на сайте, получите токен по `GET /api/accessToken?app=ВАШ_APP`.
+       Войти можно и через социальные сети на `/users/login`.
+    3. Передавайте токен в защищённых запросах параметром `?access_token=...`,
+       например `/api/translations/embed/2423373?access_token=ТОКЕН`.
+
+    У токена нет срока действия - он работает бессрочно (до смены пароля).
+
+    ## Постраничный вывод и полное сканирование
+
+    `limit` и `offset` регулируют количество элементов "на странице" и смещение.
+    При полном сканировании больших списков (например всех переводов) **не
+    используйте `offset`** - он работает очень медленно на сотнях тысяч записей.
+    Используйте `afterId` (вернёт записи с `id` больше указанного):
+    `GET /api/translations/?feed=id&afterId=10000`.
+
+servers:
+  - url: /api
+    description: Текущий домен сайта
+
+tags:
+  - name: Справочники
+    description: Типы эпизодов и переводов, расширения входных файлов.
+  - name: Каталог
+    description: Аниме, эпизоды и их видео.
+  - name: Переводы
+    description: Озвучки и субтитры, ссылки для просмотра.
+  - name: Аккаунт
+    description: Авторизация и текущий пользователь.
+
+paths:
+  /dictionaries:
+    get:
+      tags: [Справочники]
+      summary: Типы эпизодов, переводов и расширения файлов
+      description: |
+        Возвращает полные справочники типов эпизодов (`episodeTypes`) и переводов
+        (`translationTypes`). Ключ каждого объекта - стабильный код типа,
+        используемый в полях `episodeType` и `type`. Значение содержит название
+        `title` и признак `inPublicForm`: предлагается ли тип в обычной форме
+        добавления перевода. Этот признак не определяет права доступа и не
+        ограничивает допустимые значения API.
+
+        В `upload` перечислены принимаемые расширения входных видеофайлов и
+        субтитров, без точки, в нижнем регистре и без повторений. Расширение не
+        гарантирует успешную обработку: она также зависит от содержимого и
+        кодеков файла. Это не список форматов воспроизведения или скачивания.
+
+        Авторизация не требуется.
+      security: []
+      responses:
+        '200':
+          description: Справочники типов и расширения входных файлов.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Dictionaries' }
+              example:
+                data:
+                  episodeTypes:
+                    tv: { title: TV, inPublicForm: true }
+                    ova: { title: OVA, inPublicForm: true }
+                    ona: { title: ONA, inPublicForm: true }
+                    movie: { title: Фильм, inPublicForm: true }
+                    preview: { title: Трейлер, inPublicForm: true }
+                    special: { title: SP, inPublicForm: true }
+                    tv_special: { title: TV SP, inPublicForm: true }
+                    opening: { title: Opening, inPublicForm: false }
+                    ending: { title: Ending, inPublicForm: false }
+                    menu: { title: Menu, inPublicForm: false }
+                    bonus: { title: Bonus, inPublicForm: false }
+                    other: { title: Другой, inPublicForm: false }
+                  translationTypes:
+                    voiceRu: { title: озвучка, inPublicForm: true }
+                    subRu: { title: русские субтитры, inPublicForm: true }
+                    voiceUk: { title: украинская озвучка, inPublicForm: true }
+                    subUk: { title: украинские субтитры, inPublicForm: true }
+                    voiceEn: { title: английская озвучка, inPublicForm: true }
+                    subEn: { title: английские субтитры, inPublicForm: true }
+                    voiceOther: { title: озвучка на другом языке, inPublicForm: false }
+                    subJa: { title: японские субтитры, inPublicForm: true }
+                    raw: { title: RAW, inPublicForm: true }
+                  upload:
+                    subtitleExtensions: [ass, ssa, srt, vtt, webvtt]
+                    videoExtensions: [mp4, mkv, webm, mpg, mod, mmv, tod, wmv, asf, avi, divx, mov, m4v, 3gp, 3g2, m2t, mts, ogm, bik, flv, ts, ogg, qt, rm, ram, rmvb, smk, vob]
+
+  /series:
+    get:
+      tags: [Каталог]
+      summary: Список аниме
+      description: |
+        Возвращает список аниме. Поддерживает поиск по названию (`query`),
+        расширенный фильтр как на сайте (`chips`) и фильтрацию по точным
+        значениям полей.
+
+        Расширенный фильтр (тот же, что на странице `/catalog/filter/...`):
+        `GET /api/series?chips=genre@=8,35;genre_op=and`
+
+        Только нужные поля: `GET /api/series?fields=id,titles,typeTitle,posterUrlSmall`
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/fields'
+        - name: query
+          in: query
+          description: Поиск по названию.
+          schema: { type: string }
+        - name: chips
+          in: query
+          description: Строка расширенного фильтра каталога.
+          schema: { type: string }
+        - name: afterId
+          in: query
+          description: Вернуть только аниме с `id` больше указанного.
+          schema: { type: integer }
+        - name: order
+          in: query
+          description: Значение `id` сортирует по возрастанию id.
+          schema: { type: string, enum: [id] }
+        - name: myAnimeListId
+          in: query
+          schema: { type: integer }
+        - name: isActive
+          in: query
+          schema: { type: integer, enum: [0, 1] }
+        - name: isAiring
+          in: query
+          description: Онгоинг (выходит прямо сейчас).
+          schema: { type: integer, enum: [0, 1] }
+        - name: type
+          in: query
+          description: Тип (tv, movie, ova, ona, special, music).
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: season
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Список аниме.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Series' }
+
+  /series/{id}:
+    get:
+      tags: [Каталог]
+      summary: Аниме по ID
+      description: Информация о конкретном аниме и список его эпизодов.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Одно аниме.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Series' }
+        '404':
+          description: Аниме не найдено.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /episodes:
+    get:
+      tags: [Каталог]
+      summary: Список эпизодов
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/fields'
+        - name: seriesId
+          in: query
+          schema: { type: integer }
+        - name: episodeInt
+          in: query
+          description: Номер эпизода.
+          schema: { type: number }
+        - name: episodeType
+          in: query
+          description: Тип эпизода (tv, ova, ona, movie, preview, special, tv_special, opening, ending, menu, bonus, other). Актуальный список кодов и названий находится в episodeTypes в GET /api/dictionaries.
+          schema: { type: string }
+        - name: isActive
+          in: query
+          schema: { type: integer, enum: [0, 1] }
+        - name: isFirstUploaded
+          in: query
+          schema: { type: integer, enum: [0, 1] }
+      responses:
+        '200':
+          description: Список эпизодов.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Episode' }
+
+  /episodes/{id}:
+    get:
+      tags: [Каталог]
+      summary: Эпизод по ID
+      description: Информация о конкретном эпизоде и список переводов.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Один эпизод.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Episode' }
+        '404':
+          description: Эпизод не найден.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /videos/{id}:
+    get:
+      tags: [Каталог]
+      summary: Видео по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Одно видео.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Video' }
+        '404':
+          description: Видео не найдено.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /translations:
+    get:
+      tags: [Переводы]
+      summary: Список переводов
+      description: |
+        Перевод - это одна озвучка или субтитры для одного эпизода.
+
+        - Последние добавленные: `GET /api/translations/`
+        - Переводы онгоингов: `GET /api/translations/?feed=recent`
+        - Все переводы (сначала самые старые, удобно для полного сканирования):
+          `GET /api/translations/?feed=id` (или `feed=all`, включая неактивные)
+        - Все переводы аниме:
+          `GET /api/translations/?seriesId=19730&limit=10000&fields=id,episode,authorsSummary,type`
+
+        Для полного сканирования используйте `afterId`, а не `offset`.
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/fields'
+        - name: seriesId
+          in: query
+          schema: { type: integer }
+        - name: episodeId
+          in: query
+          schema: { type: integer }
+        - name: feed
+          in: query
+          description: >
+            Лента / сортировка: `recent` (онгоинги), `id`, `all` (включая
+            неактивные), `updatedDateTime`, `addedDateTime`.
+          schema:
+            type: string
+            enum: [recent, id, all, updatedDateTime, addedDateTime]
+        - name: afterId
+          in: query
+          schema: { type: integer }
+        - name: type
+          in: query
+          description: Тип перевода, например `voiceRu`, `subRu`.
+          schema: { type: string }
+        - name: qualityType
+          in: query
+          schema: { type: string }
+        - name: isActive
+          in: query
+          schema: { type: integer, enum: [0, 1] }
+      responses:
+        '200':
+          description: Список переводов.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Translation' }
+
+  /translations/{id}:
+    get:
+      tags: [Переводы]
+      summary: Перевод по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/fields'
+      responses:
+        '200':
+          description: Один перевод.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Translation' }
+        '404':
+          description: Перевод не найден.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /translations/embed/{id}:
+    get:
+      tags: [Переводы]
+      summary: Видео для просмотра/скачивания
+      description: |
+        Возвращает информацию для воспроизведения и скачивания перевода (ссылки
+        на видео и субтитры). Большинство субтитров софтсабом, т.е. нужно
+        подключать ASS-субтитры из поля `subtitlesUrl`.
+
+        Требует `access_token` от аккаунта с активной подпиской.
+
+        Для онлайн-просмотра в HTML5-плеере используйте страницу
+        `/translations/embed/{id}?access_token=ТОКЕН` (без префикса `/api`).
+      security:
+        - accessToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/accessTokenQuery'
+      responses:
+        '200':
+          description: Данные для воспроизведения.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GenericObjectResponse' }
+        '403':
+          description: Не выполнен вход или нет активной подписки.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Перевод не найден.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /upload/endpoints:
+    get:
+      tags: [Переводы]
+      summary: Точки загрузки видео (tus)
+      description: |
+        Возвращает список доступных [tus 1.0.0](https://tus.io)-эндпоинтов для
+        загрузки видео (с метками, как в селекторе канала загрузки на сайте) и
+        рекомендуемый для вас канал. Рекомендация зависит от вашей страны
+        (CDN/РФ), как и на сайте.
+
+        Загрузите файл по [tus](https://tus.io) на выбранный `tusUrl`, затем
+        передайте его `serverId` (вместе с uuid/именем/размером) в
+        `/api/translations/create`.
+      responses:
+        '200':
+          description: Доступные точки загрузки.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recommendedId:
+                        type: string
+                        description: id рекомендуемого канала из списка endpoints.
+                        example: "2"
+                      endpoints:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string, description: Идентификатор канала, example: "2" }
+                            label: { type: string, description: Человекочитаемая метка, example: "CDN" }
+                            serverId: { type: integer, description: ID сервера для /translations/create, example: 28 }
+                            tusUrl: { type: string, description: Предпочтительный tus-эндпоинт. }
+                            tusUrls:
+                              type: array
+                              description: Все эндпоинты канала (для запасных вариантов).
+                              items: { type: string }
+                            recommended: { type: boolean, description: Рекомендуется ли этот канал вам. }
+
+  /translations/create:
+    post:
+      tags: [Переводы]
+      summary: Добавить перевод из загруженного файла
+      description: |
+        Создаёт новый перевод из заранее загруженного видеофайла (и при
+        необходимости файла субтитров). Доступно любому пользователю с действующим
+        `access_token` - так же, как форма добавления на сайте.
+
+        ## Загрузка файла (tus)
+
+        Сначала получите список точек загрузки через `GET /api/upload/endpoints`
+        и загрузите видео по протоколу [tus 1.0.0](https://tus.io) на
+        рекомендованный `tusUrl` (например `https://time28.anime-on.ru/tus.php`,
+        это `serverId` 28):
+
+        1. `POST /tus.php` с заголовками `Tus-Resumable: 1.0.0`,
+           `Upload-Length: <размер в байтах>` и
+           `Upload-Metadata: filename <base64(имя файла)>`. В ответе `201` придёт
+           `Location: /tus.php?id=<uuid>`, а также заголовки `X-Upload-Uuid` и
+           `X-Upload-Server-Id`.
+        2. `PATCH /tus.php?id=<uuid>` чанками с
+           `Content-Type: application/offset+octet-stream`,
+           `Tus-Resumable: 1.0.0` и `Upload-Offset: <текущее смещение>`, пока
+           `Upload-Offset` не сравняется с `Upload-Length`. Можно возобновлять
+           прерванную загрузку: `HEAD /tus.php?id=<uuid>` вернёт текущий
+           `Upload-Offset`.
+
+        Затем вызовите этот метод, передав `serverId`, `videoUuid`,
+        `videoFilename` и `videoSize`. Файл субтитров (если есть) загружается так
+        же и передаётся в полях `subUuid` / `subFilename` / `subSize`.
+      security:
+        - accessToken: []
+      parameters:
+        - $ref: '#/components/parameters/accessTokenQuery'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TranslationCreateRequest' }
+            example:
+              seriesId: 8245
+              episodeNumber: 3
+              episodeType: tv
+              type: voiceRu
+              authors: Author1 & Author2
+              serverId: 28
+              videoUuid: 9e93fde2-604d-499c-8948-3afce1194c12
+              videoFilename: episode-03.mp4
+              videoSize: 734003200
+              videoSha256: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      responses:
+        '200':
+          description: Перевод создан.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Translation' }
+              example:
+                data:
+                  id: 2531902
+                  seriesId: 8245
+                  episodeId: 184530
+                  addedDateTime: "2026-06-19 12:41:03"
+                  activeDateTime: ""
+                  updatedDateTime: "2026-06-19 12:41:03"
+                  authorsList: ["Author1", "Author2"]
+                  authorsSummary: "Author1 & Author2"
+                  fansubsTranslationId: 0
+                  isActive: 0
+                  priority: 0
+                  qualityType: "tv"
+                  type: "voiceRu"
+                  typeKind: "voice"
+                  typeLang: "ru"
+                  title: "Author1 & Author2"
+                  url: "https://smotret-anime.app/translations/2531902"
+        '400':
+          description: Ошибка валидации (поле `error.fields` содержит подробности по атрибутам).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: 400
+                  message: "Validation error"
+                  fields:
+                    episodeNumberNew: ["Необходимо заполнить поле «Номер серии»."]
+                    type: ["Необходимо заполнить поле «Тип перевода»."]
+        '403':
+          description: Не выполнен вход (нужен `access_token`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error:
+                  code: 403
+                  message: "Authorization required."
+
+  /me:
+    get:
+      tags: [Аккаунт]
+      summary: Текущий пользователь
+      description: >
+        Возвращает аккаунт, связанный с переданным `access_token` (или с текущей
+        сессией на сайте). Для гостей поле `isLogined` равно false.
+      security:
+        - accessToken: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/accessTokenQuery'
+      responses:
+        '200':
+          description: Текущий пользователь.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+
+  /login:
+    get:
+      tags: [Аккаунт]
+      summary: Получить access_token по логину и паролю
+      description: >
+        Обменивает e-mail и пароль аккаунта на `access_token` для приложения
+        `app`. `app` должен быть зарегистрированным клиентом - создайте его на
+        странице [создания API-клиента](/api/clients).
+      parameters:
+        - name: app
+          in: query
+          required: true
+          description: Идентификатор вашего приложения.
+          schema: { type: string }
+        - name: email
+          in: query
+          required: true
+          schema: { type: string }
+        - name: password
+          in: query
+          required: true
+          schema: { type: string, format: password }
+      responses:
+        '200':
+          description: Новый токен.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessTokenResponse' }
+        '403':
+          description: Неизвестное приложение или неверные e-mail / пароль.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /accessToken:
+    get:
+      tags: [Аккаунт]
+      summary: Получить access_token для текущей сессии
+      description: >
+        Выдаёт `access_token` для пользователя, вошедшего на сайте, для
+        приложения `app`. Удобно из браузера, когда пользователь уже авторизован
+        (в том числе через социальные сети).
+      parameters:
+        - name: app
+          in: query
+          required: true
+          description: Идентификатор вашего приложения.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Новый токен.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccessTokenResponse' }
+        '403':
+          description: Вход не выполнен или неизвестное приложение.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    accessToken:
+      type: apiKey
+      in: query
+      name: access_token
+      description: Токен из `/login` или `/accessToken`, передаётся параметром запроса.
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Размер страницы (по умолчанию 50, максимум 1000).
+      schema: { type: integer, default: 50 }
+    offset:
+      name: offset
+      in: query
+      description: Сколько записей пропустить (медленно для больших списков, см. afterId).
+      schema: { type: integer, default: 0 }
+    fields:
+      name: fields
+      in: query
+      description: Список нужных полей через запятую, чтобы уменьшить ответ.
+      schema: { type: string }
+    accessTokenQuery:
+      name: access_token
+      in: query
+      description: Токен доступа (см. раздел "Авторизация").
+      schema: { type: string }
+
+  schemas:
+    DictionaryType:
+      type: object
+      required: [title, inPublicForm]
+      properties:
+        title:
+          type: string
+          description: Отображаемое название типа.
+        inPublicForm:
+          type: boolean
+          description: Предлагается ли тип в обычной форме добавления перевода, не признак прав доступа.
+
+    Dictionaries:
+      type: object
+      required: [episodeTypes, translationTypes, upload]
+      properties:
+        episodeTypes:
+          type: object
+          description: Типы эпизодов, ключи соответствуют полю episodeType.
+          additionalProperties: { $ref: '#/components/schemas/DictionaryType' }
+          example:
+            tv: { title: TV, inPublicForm: true }
+            ova: { title: OVA, inPublicForm: true }
+            ona: { title: ONA, inPublicForm: true }
+            movie: { title: Фильм, inPublicForm: true }
+            preview: { title: Трейлер, inPublicForm: true }
+            special: { title: SP, inPublicForm: true }
+            tv_special: { title: TV SP, inPublicForm: true }
+            opening: { title: Opening, inPublicForm: false }
+            ending: { title: Ending, inPublicForm: false }
+            menu: { title: Menu, inPublicForm: false }
+            bonus: { title: Bonus, inPublicForm: false }
+            other: { title: Другой, inPublicForm: false }
+        translationTypes:
+          type: object
+          description: Типы переводов, ключи соответствуют полю type перевода.
+          additionalProperties: { $ref: '#/components/schemas/DictionaryType' }
+          example:
+            voiceRu: { title: озвучка, inPublicForm: true }
+            subRu: { title: русские субтитры, inPublicForm: true }
+            voiceUk: { title: украинская озвучка, inPublicForm: true }
+            subUk: { title: украинские субтитры, inPublicForm: true }
+            voiceEn: { title: английская озвучка, inPublicForm: true }
+            subEn: { title: английские субтитры, inPublicForm: true }
+            voiceOther: { title: озвучка на другом языке, inPublicForm: false }
+            subJa: { title: японские субтитры, inPublicForm: true }
+            raw: { title: RAW, inPublicForm: true }
+        upload:
+          type: object
+          required: [subtitleExtensions, videoExtensions]
+          properties:
+            subtitleExtensions:
+              type: array
+              description: Принимаемые расширения входных файлов субтитров.
+              uniqueItems: true
+              items: { type: string }
+              example: [ass, ssa, srt, vtt, webvtt]
+            videoExtensions:
+              type: array
+              description: Принимаемые расширения входных видеофайлов.
+              uniqueItems: true
+              items: { type: string }
+              example: [mp4, mkv, webm, mpg, mod, mmv, tod, wmv, asf, avi, divx, mov, m4v, 3gp, 3g2, m2t, mts, ogm, bik, flv, ts, ogg, qt, rm, ram, rmvb, smk, vob]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: integer, example: 403 }
+            message: { type: string, example: "Authorization required." }
+            fields:
+              type: object
+              description: Ошибки валидации по полям (если есть).
+              additionalProperties: true
+
+    Series:
+      type: object
+      description: Аниме. Состав полей зависит от параметра `fields`.
+      additionalProperties: true
+      properties:
+        id: { type: integer }
+        myAnimeListId: { type: integer }
+        myAnimeListScore: { type: number }
+        worldArtScore: { type: number }
+        numberOfEpisodes: { type: integer }
+        season: { type: string }
+        year: { type: integer }
+        type: { type: string }
+        typeTitle: { type: string }
+        isActive: { type: integer }
+        isAiring: { type: integer }
+        isHentai: { type: integer }
+        posterUrl: { type: string }
+        posterUrlSmall: { type: string }
+        titles:
+          type: object
+          description: Названия по языкам.
+          additionalProperties: { type: string }
+        links:
+          type: object
+          additionalProperties: true
+
+    Episode:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: integer }
+        seriesId: { type: integer }
+        episodeFull: { type: string }
+        episodeInt: { type: number }
+        episodeTitle: { type: string }
+        episodeType: { type: string }
+        firstUploadedDateTime: { type: string }
+        isActive: { type: integer }
+        isFirstUploaded: { type: integer }
+
+    TranslationCreateRequest:
+      type: object
+      required: [seriesId, episodeNumber, episodeType, type, serverId, videoUuid, videoFilename, videoSize]
+      properties:
+        seriesId: { type: integer, description: ID аниме., example: 8245 }
+        episodeNumber: { type: number, description: Номер серии., example: 3 }
+        episodeType:
+          type: string
+          description: Тип эпизода (tv, ova, ona, movie, preview, special, tv_special, opening, ending, menu, bonus, other). Актуальный список кодов и названий находится в episodeTypes в GET /api/dictionaries.
+          example: tv
+        type:
+          type: string
+          description: Тип перевода (voiceRu, subRu, voiceUk, subUk, voiceEn, subEn, voiceOther, subJa, raw). Актуальный список кодов и названий находится в translationTypes в GET /api/dictionaries.
+          example: voiceRu
+        authors: { type: string, description: Ники авторов перевода (без ссылок)., example: Author1 & Author2 }
+        addedByAuthor:
+          type: integer
+          description: 1, если вы участник команды авторов этого перевода.
+          enum: [0, 1]
+          example: 0
+        serverId:
+          type: integer
+          description: ID сервера загрузки (из X-Upload-Server-Id, например 28).
+          example: 28
+        videoUuid: { type: string, description: uuid загруженного видео (из tus)., example: 9e93fde2-604d-499c-8948-3afce1194c12 }
+        videoFilename: { type: string, description: Имя видеофайла., example: episode-03.mp4 }
+        videoSize: { type: integer, description: Размер видеофайла в байтах., example: 734003200 }
+        videoSha256:
+          type: string
+          description: >
+            sha256 загруженного видео в hex (необязательно). Используется
+            для проверки целостности загруженного файла.
+          example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        subUuid: { type: string, description: uuid загруженных субтитров (необязательно). }
+        subFilename: { type: string, description: Имя файла субтитров., example: episode-03.ass }
+        subSize: { type: integer, description: Размер файла субтитров в байтах., example: 51234 }
+        subSha256:
+          type: string
+          description: sha256 загруженных субтитров в hex (необязательно, проверяется как videoSha256).
+
+    Translation:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: integer }
+        seriesId: { type: integer }
+        episodeId: { type: integer }
+        addedDateTime: { type: string }
+        activeDateTime: { type: string }
+        updatedDateTime: { type: string }
+        authorsList: { type: array, items: { type: string } }
+        authorsSummary: { type: string }
+        fansubsTranslationId: { type: integer }
+        isActive: { type: integer }
+        priority: { type: integer }
+        qualityType: { type: string }
+        type: { type: string }
+        typeKind: { type: string }
+        typeLang: { type: string }
+        title: { type: string }
+        url: { type: string }
+        embedUrl: { type: string }
+        duration: { type: number, description: Длительность видео в секундах. }
+        width: { type: integer }
+        height: { type: integer }
+
+    Video:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: integer }
+        episodeId: { type: integer }
+        seriesId: { type: integer }
+        filename: { type: string }
+        type: { type: string }
+        typeKind: { type: string }
+        typeLang: { type: string }
+        urlList:
+          type: array
+          items: { type: string }
+
+    User:
+      type: object
+      additionalProperties: true
+      properties:
+        isLogined: { type: boolean }
+        id: { type: integer }
+        name: { type: string }
+        isPremium: { type: boolean }
+        premiumUntil: { type: string }
+
+    AccessTokenResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            access_token: { type: string }
+
+    GenericObjectResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
