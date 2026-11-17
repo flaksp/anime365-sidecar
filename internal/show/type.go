@@ -15,11 +15,6 @@ type (
 	MyAnimeListID    int64
 )
 
-type ExternalNamedLink struct {
-	URL  *url.URL
-	Name string
-}
-
 type Show struct {
 	Anime365URL      *url.URL
 	PosterURL        *url.URL
@@ -28,7 +23,6 @@ type Show struct {
 	Description      string
 	TypeLabel        string
 	SeasonLabel      string
-	Links            []ExternalNamedLink
 	EpisodePreviews  []EpisodePreview
 	Genres           []string
 	Anime365ID       Anime365SeriesID
@@ -55,7 +49,6 @@ func NewShow(series anime365client.Series) (Show, error) {
 		Genres:        make([]string, 0, len(series.Genres)),
 		IsOngoing:     series.IsAiring == 1,
 		Year:          series.Year,
-		Links:         make([]ExternalNamedLink, 0, len(series.Links)),
 		SeasonLabel:   series.Season,
 		TypeLabel:     series.TypeTitle,
 		EpisodesTotal: series.NumberOfEpisodes,
@@ -91,18 +84,6 @@ func NewShow(series anime365client.Series) (Show, error) {
 
 	for _, genreDTO := range series.Genres {
 		showEntity.Genres = append(showEntity.Genres, genreDTO.Title)
-	}
-
-	for _, linkDTO := range series.Links {
-		u, err := url.Parse(linkDTO.URL)
-		if err != nil {
-			continue
-		}
-
-		showEntity.Links = append(showEntity.Links, ExternalNamedLink{
-			Name: strings.TrimSpace(linkDTO.Title),
-			URL:  u,
-		})
 	}
 
 	for _, episodeDTO := range series.Episodes {
