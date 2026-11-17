@@ -64,7 +64,23 @@ func (c *Client) GetSeries(ctx context.Context, seriesID int64) (Series, error) 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	response, err := c.apiClient.GetSeriesWithResponse(ctx, seriesID, nil)
+	response, err := c.apiClient.GetSeriesWithResponse(ctx, seriesID, &api.GetSeriesParams{
+		Fields: strings.Join([]string{
+			"id",
+			"titles",
+			"myAnimeListId",
+			"myAnimeListScore",
+			"genres",
+			"isAiring",
+			"year",
+			"season",
+			"typeTitle",
+			"numberOfEpisodes",
+			"episodes",
+			"posterUrl",
+			"descriptions",
+		}, ","),
+	})
 	if err != nil {
 		return Series{}, fmt.Errorf("requesting Anime365 API: %w", err)
 	}
@@ -81,7 +97,18 @@ func (c *Client) GetEpisode(ctx context.Context, episodeID int64) (Episode, erro
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	response, err := c.apiClient.GetEpisodeWithResponse(ctx, episodeID, nil)
+	response, err := c.apiClient.GetEpisodeWithResponse(ctx, episodeID, &api.GetEpisodeParams{
+		Fields: strings.Join([]string{
+			"id",
+			"episodeType",
+			"episodeFull",
+			"isActive",
+			"episodeTitle",
+			"episodeInt",
+			"translations",
+			"firstUploadedDateTime",
+		}, ","),
+	})
 	if err != nil {
 		return Episode{}, fmt.Errorf("requesting Anime365 API: %w", err)
 	}
@@ -98,7 +125,17 @@ func (c *Client) GetTranslation(ctx context.Context, translationID int64) (Trans
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	response, err := c.apiClient.GetTranslationWithResponse(ctx, translationID, nil)
+	response, err := c.apiClient.GetTranslationWithResponse(ctx, translationID, &api.GetTranslationParams{
+		Fields: strings.Join([]string{
+			"id",
+			"authorsList",
+			"priority",
+			"isActive",
+			"typeKind",
+			"typeLang",
+			"activeDateTime",
+		}, ","),
+	})
 	if err != nil {
 		return Translation{}, fmt.Errorf("requesting Anime365 API: %w", err)
 	}
