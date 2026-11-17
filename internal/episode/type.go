@@ -2,7 +2,6 @@ package episode
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"net/url"
 	"strings"
@@ -49,18 +48,6 @@ func (t TranslationKind) Label() string {
 	}
 }
 
-func (t TranslationKind) IsSubtitles() bool {
-	return t == TranslationKindSubtitles
-}
-
-func (t TranslationKind) IsDub() bool {
-	return t == TranslationKindDub
-}
-
-func (t TranslationKind) IsRaw() bool {
-	return t == TranslationKindRaw
-}
-
 type TranslationVariant struct {
 	Language language.Tag
 	Kind     TranslationKind
@@ -68,7 +55,6 @@ type TranslationVariant struct {
 
 type Translation struct {
 	MarkedAsActiveAt time.Time
-	Anime365URL      *url.URL
 	Variant          TranslationVariant
 	Authors          []string
 	Anime365ID       Anime365TranslationID
@@ -94,13 +80,6 @@ func NewTranslation(translationDTO anime365client.Translation) (Translation, err
 	default:
 		return Translation{}, ErrNormalizingEpisodeEntity
 	}
-
-	anime365URL, err := url.Parse(translationDTO.URL)
-	if err != nil {
-		return Translation{}, fmt.Errorf("failed to parse translation anime 365 url: %w", err)
-	}
-
-	translationEntity.Anime365URL = anime365URL
 
 	translationLanguage, err := language.Parse(translationDTO.TypeLang)
 	if err != nil {

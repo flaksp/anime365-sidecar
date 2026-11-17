@@ -40,7 +40,7 @@ func (s *Service) TranslationDownloaded(
 		return nil
 	}
 
-	_, err := s.telegramBotAPIClient.SendMessage(
+	err := s.telegramBotAPIClient.SendMessage(
 		ctx,
 		s.telegramRecipient,
 		fmt.Sprintf(
@@ -87,7 +87,7 @@ func (s *Service) TranslationDeleted(
 		)
 	}
 
-	_, err := s.telegramBotAPIClient.SendMessage(
+	err := s.telegramBotAPIClient.SendMessage(
 		ctx,
 		s.telegramRecipient,
 		fmt.Sprintf(

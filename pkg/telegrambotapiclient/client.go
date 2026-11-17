@@ -47,9 +47,7 @@ func (c *Client) SendMessage(
 	chatID any,
 	text string,
 	optionalParams *SendMessageOptionalParams,
-) (Message, error) {
-	var response Message
-
+) error {
 	params := map[string]any{
 		"chat_id": chatID,
 		"text":    text,
@@ -63,19 +61,17 @@ func (c *Client) SendMessage(
 		if optionalParams.LinkPreviewOptions != nil {
 			linkPreviewOptionsBytes, err := json.Marshal(optionalParams.LinkPreviewOptions)
 			if err != nil {
-				return response, fmt.Errorf("failed to marshal link preview options: %w", err)
+				return fmt.Errorf("failed to marshal link preview options: %w", err)
 			}
 
 			params["link_preview_options"] = string(linkPreviewOptionsBytes)
 		}
 	}
 
-	err := c.sendRequestToAPI(ctx, "sendMessage", params, &response)
-
-	return response, err
+	return c.sendRequestToAPI(ctx, "sendMessage", params)
 }
 
-func (c *Client) sendRequestToAPI(ctx context.Context, apiMethod string, params map[string]any, response any) error {
+func (c *Client) sendRequestToAPI(ctx context.Context, apiMethod string, params map[string]any) error {
 	httpRequestCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
@@ -142,10 +138,6 @@ func (c *Client) sendRequestToAPI(ctx context.Context, apiMethod string, params 
 
 	if len(wrappedResponse.Result) == 0 {
 		return errors.New("empty result field in response")
-	}
-
-	if err := json.Unmarshal(wrappedResponse.Result, response); err != nil {
-		return fmt.Errorf("unmarshaling response data: %w", err)
 	}
 
 	return nil

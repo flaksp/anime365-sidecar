@@ -16,7 +16,6 @@ type (
 )
 
 type Show struct {
-	Anime365URL      *url.URL
 	PosterURL        *url.URL
 	TitleRomaji      string
 	TitleRussian     string
@@ -36,8 +35,6 @@ type Show struct {
 type EpisodePreview struct {
 	Anime365ID    episode.Anime365EpisodeID
 	EpisodeNumber int64
-	IsTrailer     bool
-	IsSpecial     bool
 }
 
 func NewShow(series anime365client.Series) (Show, error) {
@@ -53,13 +50,6 @@ func NewShow(series anime365client.Series) (Show, error) {
 		TypeLabel:     series.TypeTitle,
 		EpisodesTotal: series.NumberOfEpisodes,
 	}
-
-	anime365URL, err := url.Parse(series.URL)
-	if err != nil {
-		return Show{}, fmt.Errorf("failed to parse series anime 365 url: %w", err)
-	}
-
-	showEntity.Anime365URL = anime365URL
 
 	if series.MyAnimeListScore > 0 {
 		showEntity.MyAnimeListScore = series.MyAnimeListScore
@@ -89,13 +79,10 @@ func NewShow(series anime365client.Series) (Show, error) {
 	for _, episodeDTO := range series.Episodes {
 		preview := EpisodePreview{
 			Anime365ID: episode.Anime365EpisodeID(episodeDTO.ID),
-			IsTrailer:  episodeDTO.EpisodeType == "preview",
 		}
 
 		episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)
-		if fractionalPart != 0 || episodeNumber <= 0 {
-			preview.IsSpecial = true
-		} else {
+		if fractionalPart == 0 && episodeNumber > 0 {
 			preview.EpisodeNumber = int64(episodeNumber)
 		}
 

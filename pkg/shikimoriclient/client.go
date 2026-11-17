@@ -44,8 +44,6 @@ type Client struct {
 	timeout              time.Duration
 }
 
-const QueryAnimesMaxLimit = 50
-
 func (c *Client) GetAnimes(
 	ctx context.Context,
 	ids []int64,

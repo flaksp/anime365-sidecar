@@ -350,8 +350,7 @@ func (c *Client) sendGETRequestToWeb(ctx context.Context, endpoint string, query
 		)
 
 		return nil, WebError{
-			StatusCode: httpResponse.StatusCode,
-			Status:     httpResponse.Status,
+			Status: httpResponse.Status,
 		}
 	}
 
@@ -447,8 +446,7 @@ func (c *Client) sendPOSTRequestToWeb(
 		)
 
 		return nil, WebError{
-			StatusCode: httpResponse.StatusCode,
-			Status:     httpResponse.Status,
+			Status: httpResponse.Status,
 		}
 	}
 

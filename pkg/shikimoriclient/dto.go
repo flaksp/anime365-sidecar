@@ -42,20 +42,8 @@ type Person struct {
 
 type AnimeRatingEnum string
 
-const (
-	AnimeRatingEnumNone  AnimeRatingEnum = "none"
-	AnimeRatingEnumG     AnimeRatingEnum = "g"
-	AnimeRatingEnumPG    AnimeRatingEnum = "pg"
-	AnimeRatingEnumPG13  AnimeRatingEnum = "pg_13"
-	AnimeRatingEnumR     AnimeRatingEnum = "r"
-	AnimeRatingEnumRPlus AnimeRatingEnum = "r_plus"
-	AnimeRatingEnumRx    AnimeRatingEnum = "rx"
-)
-
 type AnimeStatusEnum string
 
 const (
-	AnimeStatusEnumAnons    AnimeStatusEnum = "anons"
-	AnimeStatusEnumOngoing  AnimeStatusEnum = "ongoing"
 	AnimeStatusEnumReleased AnimeStatusEnum = "released"
 )

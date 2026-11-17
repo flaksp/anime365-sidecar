@@ -1,8 +1,7 @@
 package anime365client
 
 type WebError struct {
-	Status     string
-	StatusCode int
+	Status string
 }
 
 func (e WebError) Error() string {
