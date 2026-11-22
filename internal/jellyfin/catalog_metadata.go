@@ -24,12 +24,12 @@ func (s *Service) UpdateTranslationCatalogMetadata(
 		return fmt.Errorf("getting episode item: %w", err)
 	}
 
-	nameOrDateChanged := metadata.ApplyTitleAndDate(&item.Name, &item.PremiereDate)
+	detailsChanged := metadata.ApplyDetails(&item.Name, &item.PremiereDate, &item.CommunityRating)
 	tags := metadata.ApplyTags(item.Tags)
 	tagsChanged := !slices.Equal(item.Tags, tags)
 	item.Tags = tags
 
-	if !nameOrDateChanged && !tagsChanged {
+	if !detailsChanged && !tagsChanged {
 		return nil
 	}
 

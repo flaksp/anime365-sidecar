@@ -144,6 +144,11 @@ func (s *Service) fetchTenraiEpisodes(
 			}
 
 			entry := episode.CatalogMetadata{Filler: row.Filler, Recap: row.Recap}
+			// Tenrai reports a five-star average. Media servers use a ten-point rating.
+			if score := row.Score; score != nil && *score >= 1 && *score <= 5 {
+				entry.CommunityRating = new(*score * 2)
+			}
+
 			if row.Title != nil {
 				entry.Title = strings.TrimSpace(*row.Title)
 			}

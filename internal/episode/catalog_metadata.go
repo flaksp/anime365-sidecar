@@ -6,14 +6,15 @@ import (
 )
 
 type CatalogMetadata struct {
-	AiredAt time.Time
-	Filler  *bool
-	Recap   *bool
-	Title   string
+	AiredAt         time.Time
+	CommunityRating *float32
+	Filler          *bool
+	Recap           *bool
+	Title           string
 }
 
-// ApplyTitleAndDate updates only the title and air date supplied by the catalog.
-func (m CatalogMetadata) ApplyTitleAndDate(name **string, premiereDate **time.Time) bool {
+// ApplyDetails updates the title, air date, and community rating supplied by the catalog.
+func (m CatalogMetadata) ApplyDetails(name **string, premiereDate **time.Time, communityRating **float32) bool {
 	changed := false
 
 	if m.Title != "" && (*name == nil || **name != m.Title) {
@@ -23,6 +24,11 @@ func (m CatalogMetadata) ApplyTitleAndDate(name **string, premiereDate **time.Ti
 
 	if date := m.AiredAt; !date.IsZero() && (*premiereDate == nil || !(**premiereDate).Equal(date)) {
 		*premiereDate = new(date)
+		changed = true
+	}
+
+	if rating := m.CommunityRating; rating != nil && (*communityRating == nil || **communityRating != *rating) {
+		*communityRating = rating
 		changed = true
 	}
 
