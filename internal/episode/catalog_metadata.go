@@ -11,14 +11,25 @@ type CatalogMetadata struct {
 	Filler          *bool
 	Recap           *bool
 	Title           string
+	Synopsis        string
 }
 
-// ApplyDetails updates the title, air date, and community rating supplied by the catalog.
-func (m CatalogMetadata) ApplyDetails(name **string, premiereDate **time.Time, communityRating **float32) bool {
+// ApplyDetails updates the episode fields supplied by the catalog.
+func (m CatalogMetadata) ApplyDetails(
+	name **string,
+	overview **string,
+	premiereDate **time.Time,
+	communityRating **float32,
+) bool {
 	changed := false
 
 	if m.Title != "" && (*name == nil || **name != m.Title) {
 		*name = new(m.Title)
+		changed = true
+	}
+
+	if m.Synopsis != "" && (*overview == nil || **overview != m.Synopsis) {
+		*overview = new(m.Synopsis)
 		changed = true
 	}
 

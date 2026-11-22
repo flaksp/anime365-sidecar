@@ -24,7 +24,7 @@ func (s *Service) UpdateTranslationCatalogMetadata(
 		return fmt.Errorf("getting episode item: %w", err)
 	}
 
-	detailsChanged := metadata.ApplyDetails(&item.Name, &item.PremiereDate, &item.CommunityRating)
+	detailsChanged := metadata.ApplyDetails(&item.Name, &item.Overview, &item.PremiereDate, &item.CommunityRating)
 	tags := metadata.ApplyTags(item.Tags)
 	tagsChanged := !slices.Equal(item.Tags, tags)
 	item.Tags = tags

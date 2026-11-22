@@ -153,6 +153,10 @@ func (s *Service) fetchTenraiEpisodes(
 				entry.Title = strings.TrimSpace(*row.Title)
 			}
 
+			if row.Synopsis != nil {
+				entry.Synopsis = strings.TrimSpace(*row.Synopsis)
+			}
+
 			if row.Aired != nil && *row.Aired != "" {
 				airedAt, err := time.Parse(time.RFC3339, *row.Aired)
 				if err != nil {
