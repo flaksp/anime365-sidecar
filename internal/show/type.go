@@ -35,6 +35,7 @@ type Show struct {
 type EpisodePreview struct {
 	Anime365ID    episode.Anime365EpisodeID
 	EpisodeNumber int64
+	IsTrailer     bool
 }
 
 func NewShow(series anime365client.Series) (Show, error) {
@@ -79,6 +80,7 @@ func NewShow(series anime365client.Series) (Show, error) {
 	for _, episodeDTO := range series.Episodes {
 		preview := EpisodePreview{
 			Anime365ID: episode.Anime365EpisodeID(episodeDTO.ID),
+			IsTrailer:  episodeDTO.EpisodeType == "preview",
 		}
 
 		episodeNumber, fractionalPart := math.Modf(episodeDTO.EpisodeInt)

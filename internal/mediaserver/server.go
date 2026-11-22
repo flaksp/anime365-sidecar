@@ -88,6 +88,14 @@ type Server interface {
 		translationEntity episode.Translation,
 	) error
 
+	UpdateTranslationCatalogMetadata(
+		ctx context.Context,
+		showID show.Anime365SeriesID,
+		episodeID episode.Anime365EpisodeID,
+		translationID episode.Anime365TranslationID,
+		metadata episode.CatalogMetadata,
+	) error
+
 	IsPosterExists(showID show.Anime365SeriesID, posterURL *url.URL) (bool, error)
 	ComputePosterFileAbsolutePath(showID show.Anime365SeriesID, posterURL *url.URL) (string, error)
 	IsBackdropExists(showID show.Anime365SeriesID, screenshotID string) bool

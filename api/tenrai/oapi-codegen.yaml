@@ -1,0 +1,10 @@
+package: tenraiclient
+output: pkg/tenraiclient/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  name-normalizer: ToCamelCaseWithInitialisms
+  prefer-skip-optional-pointer-on-container-types: true
+  include-operation-ids:
+    - getAnimeByIdEpisodes

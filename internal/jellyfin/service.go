@@ -1,7 +1,9 @@
 package jellyfin
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sync"
 
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/episode"
@@ -62,6 +65,8 @@ type Service struct {
 	libraryID                    uuid.UUID
 	jellyfinLibraryItemID        uuid.UUID
 	jellyfinUserID               uuid.UUID
+	// Serialize episode metadata read-modify-write calls across workers.
+	episodeMetadataMu sync.Mutex
 }
 
 // Initialize loads adapter-owned state before discovering the configured library.
@@ -504,6 +509,9 @@ func (s *Service) InitializeTranslationMetadata(
 	episodeEntity episode.Episode,
 	translationEntity episode.Translation,
 ) error {
+	s.episodeMetadataMu.Lock()
+	defer s.episodeMetadataMu.Unlock()
+
 	jellyfinItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
 		if errors.Is(err, mediaserver.ErrItemNotFound) {
@@ -581,6 +589,9 @@ func (s *Service) UpdateTranslationMetadata(
 	episodeEntity episode.Episode,
 	translationEntity episode.Translation,
 ) error {
+	s.episodeMetadataMu.Lock()
+	defer s.episodeMetadataMu.Unlock()
+
 	jellyfinItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
 		if errors.Is(err, mediaserver.ErrItemNotFound) {
@@ -674,7 +685,30 @@ func (s *Service) getJellyfinTranslationPath(
 }
 
 func (s *Service) updateItem(ctx context.Context, jellyfinItem jellyfinclient.BaseItemDto) error {
-	err := jellyfinResponseError(s.jellyfinClient.UpdateItemWithResponse(ctx, value(jellyfinItem.Id), jellyfinItem))
+	var err error
+
+	if jellyfinItem.Tags != nil && len(jellyfinItem.Tags) == 0 {
+		// The generated DTO omits empty tags. Send an explicit array to clear them.
+		body, marshalErr := json.Marshal(struct {
+			jellyfinclient.BaseItemDto
+			Tags []string `json:"Tags"`
+		}{jellyfinItem, jellyfinItem.Tags})
+		if marshalErr != nil {
+			return fmt.Errorf("failed to encode item with empty tags: %w", marshalErr)
+		}
+
+		err = jellyfinResponseError(
+			s.jellyfinClient.UpdateItemWithBodyWithResponse(
+				ctx,
+				value(jellyfinItem.Id),
+				"application/json",
+				bytes.NewReader(body),
+			),
+		)
+	} else {
+		err = jellyfinResponseError(s.jellyfinClient.UpdateItemWithResponse(ctx, value(jellyfinItem.Id), jellyfinItem))
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to update jellyfin item %s via api: %w", value(jellyfinItem.Id).String(), err)
 	}

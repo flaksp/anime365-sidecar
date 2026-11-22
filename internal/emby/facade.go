@@ -1,7 +1,9 @@
 package emby
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sync"
 
 	"github.com/flaksp/anime365-sidecar/internal/animemapping"
 	"github.com/flaksp/anime365-sidecar/internal/emby/internal/manifest"
@@ -61,6 +64,8 @@ type Service struct {
 	embyLibraryItemID        string
 	embyLibraryRootDirectory string
 	embyUserID               string
+	// Serialize episode metadata read-modify-write calls across workers.
+	episodeMetadataMu sync.Mutex
 }
 
 // Initialize loads adapter-owned state before discovering the configured library.
@@ -587,6 +592,9 @@ func (s *Service) InitializeTranslationMetadata(
 	episodeEntity episode.Episode,
 	translationEntity episode.Translation,
 ) error {
+	s.episodeMetadataMu.Lock()
+	defer s.episodeMetadataMu.Unlock()
+
 	embyItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
 		if errors.Is(err, mediaserver.ErrItemNotFound) {
@@ -666,6 +674,9 @@ func (s *Service) UpdateTranslationMetadata(
 	episodeEntity episode.Episode,
 	translationEntity episode.Translation,
 ) error {
+	s.episodeMetadataMu.Lock()
+	defer s.episodeMetadataMu.Unlock()
+
 	embyItem, err := s.getEpisodeItem(ctx, showID, episodeEntity.Anime365ID, translationEntity.Anime365ID)
 	if err != nil {
 		if errors.Is(err, mediaserver.ErrItemNotFound) {
@@ -1081,11 +1092,44 @@ func (s *Service) getEpisodeItem(
 		return embyclient.BaseItemDto{}, mediaserver.ErrItemNotFound
 	}
 
-	return itemsResponse.Items[0], nil
+	item := itemsResponse.Items[0]
+	// Emby can return tag names in TagItems. Carry them into otherwise unrelated metadata writes.
+	if len(item.Tags) == 0 && len(item.TagItems) > 0 {
+		for _, pair := range item.TagItems {
+			if pair.Name != nil {
+				item.Tags = append(item.Tags, *pair.Name)
+			}
+		}
+	}
+
+	return item, nil
 }
 
 func (s *Service) updateItem(ctx context.Context, embyItem embyclient.BaseItemDto) error {
-	err := embyResponseError(s.embyClient.PostItemsByItemidWithResponse(ctx, value(embyItem.Id), embyItem))
+	var err error
+
+	if embyItem.Tags != nil && len(embyItem.Tags) == 0 && len(embyItem.TagItems) == 0 {
+		// The generated DTO omits empty tags. Send an explicit array to clear them.
+		body, marshalErr := json.Marshal(struct {
+			embyclient.BaseItemDto
+			Tags []string `json:"Tags"`
+		}{embyItem, embyItem.Tags})
+		if marshalErr != nil {
+			return fmt.Errorf("failed to encode item with empty tags: %w", marshalErr)
+		}
+
+		err = embyResponseError(
+			s.embyClient.PostItemsByItemidWithBodyWithResponse(
+				ctx,
+				value(embyItem.Id),
+				"application/json",
+				bytes.NewReader(body),
+			),
+		)
+	} else {
+		err = embyResponseError(s.embyClient.PostItemsByItemidWithResponse(ctx, value(embyItem.Id), embyItem))
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to update emby item %s via api: %w", value(embyItem.Id), err)
 	}

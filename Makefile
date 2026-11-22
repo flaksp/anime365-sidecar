@@ -21,3 +21,9 @@ generate-anime365-client:
 
 update-anime365-openapi:
 	curl --fail --location --output api/anime365/openapi.yaml https://smotret-anime.org/api/openapi.yaml
+
+generate-tenrai-client:
+	go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest --config api/tenrai/oapi-codegen.yaml api/tenrai/openapi.json
+
+update-tenrai-openapi:
+	curl --fail --location --output api/tenrai/openapi.json https://api.tenrai.org/documentation/openapi.json

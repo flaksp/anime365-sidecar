@@ -103,7 +103,6 @@ func (c *Client) GetEpisode(ctx context.Context, episodeID int64) (Episode, erro
 			"episodeType",
 			"episodeFull",
 			"isActive",
-			"episodeTitle",
 			"episodeInt",
 			"translations",
 			"firstUploadedDateTime",

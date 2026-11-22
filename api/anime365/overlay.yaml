@@ -24,6 +24,8 @@ actions:
       episodes:
         type: array
         items: { $ref: '#/components/schemas/Episode' }
+  - target: $.components.schemas.Episode.properties.episodeTitle
+    remove: true
   - target: $.components.schemas.Episode.properties
     update:
       translations:

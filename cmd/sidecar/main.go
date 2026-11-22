@@ -11,6 +11,7 @@ import (
 	"github.com/flaksp/anime365-sidecar/internal/mylist"
 	"github.com/flaksp/anime365-sidecar/internal/show"
 	"github.com/flaksp/anime365-sidecar/internal/showdownloader"
+	"github.com/flaksp/anime365-sidecar/internal/tenraimetadatarefresher"
 	"github.com/flaksp/anime365-sidecar/internal/watchednotifier"
 	"github.com/flaksp/anime365-sidecar/pkg/downloader"
 	"go.uber.org/fx"
@@ -26,6 +27,7 @@ func main() {
 		}),
 		fx.Provide(module.Anime365Client),
 		fx.Provide(module.ShikimoriClient),
+		fx.Provide(module.TenraiClient),
 		fx.Provide(module.AnimeMappingService),
 		fx.Provide(module.NotificationSender),
 		fx.Provide(module.TelegramBotAPIClient),
@@ -36,6 +38,7 @@ func main() {
 		fx.Provide(module.LibraryCleanupOptions),
 		fx.Provide(module.ScanSource),
 		fx.Provide(module.LibraryMetadataRefresher),
+		fx.Provide(tenraimetadatarefresher.NewService),
 		fx.Provide(watchednotifier.NewService),
 		fx.Provide(show.NewService),
 		fx.Provide(episode.NewService),
@@ -53,6 +56,7 @@ func main() {
 		fx.Invoke(worker.LibraryCleanup),
 		fx.Invoke(worker.ItemsWithoutMetadataMetadataRefresher),
 		fx.Invoke(worker.ItemsWithMetadataMetadataRefresher),
+		fx.Invoke(worker.TenraiMetadataRefresher),
 		fx.Invoke(worker.WatchedNotifier),
 	).Run()
 }
